@@ -1,0 +1,57 @@
+syntax="proto3";
+
+package raft ;
+
+service Raft {
+    rpc RequestVote (RequestVoteRequest) returns (RequestVoteResponse) {}
+    rpc AppendEntries (AppendEntriesRequest) returns (AppendEntriesResponse) {}
+    rpc ExecuteCommand (ExecuteCommandRequest) returns (ExecuteCommandResponse) {}
+}
+
+message RequestVoteRequest {
+    int64 candidateId = 1;
+    int64 term = 2;
+    int64 lastLogIndex = 3;
+    int64 lastLogTerm = 4;
+}
+
+message RequestVoteResponse {
+    int64 term = 1;
+    bool voteGranted = 2;
+}
+
+message AppendEntriesRequest {
+    int64 term = 1;
+    int64 leaderId = 2;
+    int64 prevLogIndex = 3;
+    int64 prevLogTerm = 4;
+    int64 commitIndex = 5;
+    repeated LogEntry entries = 6;
+}
+
+message AppendEntriesResponse {
+    int64 term = 1;
+    bool success = 2;
+}
+
+message LogEntry {
+    int64 term = 1;
+    int64 index = 2;
+    bytes command = 3;
+}
+
+message PersistentState {
+    int64 currentTerm = 1;
+    int64 votedFor = 2;
+    repeated LogEntry log = 3;
+}
+
+message ExecuteCommandRequest {
+    bytes command = 1;
+}
+
+message ExecuteCommandResponse {
+    bool success = 1;
+    string serverAddress = 2;
+    bytes answer = 3;
+}
