@@ -8,65 +8,65 @@ import (
 
 func TestServerSmoke(t *testing.T) {
 	Convey("Given Initialized server and simple role", t, func() {
+		testRole := RoleHandle(-100)
 		server := newServer()
 		role := newSimpleRole(server)
-		server.currentRole = role
-		go server.currentRole.RunRole()
+		server.roles[testRole] = role
+		go server.run(testRole)
+		defer server.Stop()
 
 		Convey("when we send RequestVote request to a server we should receive a valid response", func() {
 			_, err := server.RequestVote(nil, nil)
-			So(err, ShouldEqual, nil)
+			So(err, ShouldBeNil)
 		})
 
 		Convey("when we send AppendEntries request to a server we should receive a valid response", func() {
 			_, err := server.AppendEntries(nil, nil)
-			So(err, ShouldEqual, nil)
+			So(err, ShouldBeNil)
 		})
 
 		Convey("when we send ExecuteCommand request to a server we should receive a valid response", func() {
 			_, err := server.ExecuteCommand(nil, nil)
-			So(err, ShouldEqual, nil)
+			So(err, ShouldBeNil)
 		})
 
-		role.quitCh <- true
+		Convey("server should return correct role", func() {
+			So(server.getRole(testRole), ShouldEqual, role)
+		})
+		Convey("server should return exitRoleInstance on unknown errorHandle", func() {
+			So(server.getRole(RoleHandle(-111)), ShouldEqual, exitRoleInstance)
+		})
 	})
 }
 
 type simpleRole struct {
-	requestVoteCh    chan *requestVoteMessage
-	appendEntriesCh  chan *appendEntriesMessage
-	executeCommandCh chan *executeCommandMessage
-	quitCh           chan bool
+	channels *channelSet
 }
 
 func newSimpleRole(s *Server) *simpleRole {
-	return &simpleRole{quitCh: make(chan bool),
-		requestVoteCh:    s.requestVoteCh,
-		appendEntriesCh:  s.appendEntriesCh,
-		executeCommandCh: s.executeCommandCh,
-	}
+	return &simpleRole{ channels: s.channels }
 }
 
 func (r *simpleRole) RunRole() RoleHandle {
 	for {
 		select {
-		case requestVote := <-r.requestVoteCh:
+		case requestVote := <-r.channels.requestVoteCh:
 			requestVote.out <- struct {
 				*pb.RequestVoteResponse
 				error
 			}{nil, nil}
-		case appendEntries := <-r.appendEntriesCh:
+		case appendEntries := <-r.channels.appendEntriesCh:
 			appendEntries.out <- struct {
 				*pb.AppendEntriesResponse
 				error
 			}{nil, nil}
-		case executeCommand := <-r.executeCommandCh:
+		case executeCommand := <-r.channels.executeCommandCh:
 			executeCommand.out <- struct {
 				*pb.ExecuteCommandResponse
 				error
 			}{nil, nil}
-		case <-r.quitCh:
-			return LeaderRole
+		case <-r.channels.quitCh:
+			return ExitRoleHandle
 		}
 	}
 }
