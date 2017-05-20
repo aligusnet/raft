@@ -5,11 +5,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-type StateMachine interface {
-	ExecuteCommand(command []byte) ([]byte, error)
-	CommandToString(command []byte) (string, error)
-}
-
 type requestVoteMessage struct {
 	ctx context.Context
 	in  *pb.RequestVoteRequest
@@ -54,7 +49,7 @@ func newChannelSet() *channelSet {
 type Server struct {
 	channels *channelSet
 
-	roles       map[RoleHandle]Role
+	roles map[RoleHandle]Role
 }
 
 func newServer() *Server {

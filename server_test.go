@@ -44,7 +44,7 @@ type simpleRole struct {
 }
 
 func newSimpleRole(s *Server) *simpleRole {
-	return &simpleRole{ channels: s.channels }
+	return &simpleRole{channels: s.channels}
 }
 
 func (r *simpleRole) RunRole() RoleHandle {

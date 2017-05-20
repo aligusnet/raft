@@ -5,7 +5,6 @@ import (
 	"testing"
 )
 
-
 func TestRole(t *testing.T) {
 	Convey("ExitRole should just return ExitRoleHandle", t, func() {
 		So(exitRoleInstance.RunRole(), ShouldEqual, ExitRoleHandle)

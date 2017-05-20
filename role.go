@@ -5,7 +5,7 @@ type RoleHandle int
 const (
 	LeaderRoleHandle    RoleHandle = iota
 	FollowerRoleHandle  RoleHandle = iota
-	CanfifateRoleHandle RoleHandle = iota
+	CandidateRoleHandle RoleHandle = iota
 	ExitRoleHandle      RoleHandle = iota
 )
 
