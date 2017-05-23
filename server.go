@@ -100,8 +100,8 @@ func (s *Server) getRole(handle RoleHandle) Role {
 
 }
 
-func (s *Server) run(handle RoleHandle) {
-	for ; handle != ExitRoleHandle; handle = s.getRole(handle).RunRole() {
+func (s *Server) run(handle RoleHandle, state *State) {
+	for ; handle != ExitRoleHandle; handle, state = s.getRole(handle).RunRole(state) {
 	}
 }
 

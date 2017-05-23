@@ -12,7 +12,7 @@ func TestServerSmoke(t *testing.T) {
 		server := newServer()
 		role := newSimpleRole(server)
 		server.roles[testRole] = role
-		go server.run(testRole)
+		go server.run(testRole, nil)
 		defer server.Stop()
 
 		Convey("when we send RequestVote request to a server we should receive a valid response", func() {
@@ -47,7 +47,7 @@ func newSimpleRole(s *Server) *simpleRole {
 	return &simpleRole{channels: s.channels}
 }
 
-func (r *simpleRole) RunRole() RoleHandle {
+func (r *simpleRole) RunRole(state *State) (RoleHandle, *State) {
 	for {
 		select {
 		case requestVote := <-r.channels.requestVoteCh:
@@ -66,7 +66,7 @@ func (r *simpleRole) RunRole() RoleHandle {
 				error
 			}{nil, nil}
 		case <-r.channels.quitCh:
-			return ExitRoleHandle
+			return ExitRoleHandle, state
 		}
 	}
 }

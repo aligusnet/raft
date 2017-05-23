@@ -10,13 +10,13 @@ const (
 )
 
 type Role interface {
-	RunRole() RoleHandle
+	RunRole(state *State) (RoleHandle, *State)
 }
 
 type ExitRole struct{}
 
-func (r *ExitRole) RunRole() RoleHandle {
-	return ExitRoleHandle
+func (r *ExitRole) RunRole(state *State) (RoleHandle, *State) {
+	return ExitRoleHandle, state
 }
 
 var exitRoleInstance *ExitRole = new(ExitRole)

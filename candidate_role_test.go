@@ -6,6 +6,7 @@ import (
 )
 
 func TestCandidateRole(t *testing.T) {
+	state := &State{}
 	Convey("Replica should be elected given at least half of votes", t, func() {
 		var replicas []*Replica
 		for i := 0; i < 4; i++ {
@@ -13,8 +14,9 @@ func TestCandidateRole(t *testing.T) {
 			replicas = append(replicas, &Replica{client: client})
 		}
 
-		role := &CandidateRole{replicas: replicas, state: &State{}}
-		So(role.RunRole(), ShouldEqual, LeaderRoleHandle)
+		role := &CandidateRole{replicas: replicas}
+		rh, _ := role.RunRole(state)
+		So(rh, ShouldEqual, LeaderRoleHandle)
 	})
 
 	Convey("Replica should not be elected given less than half of votes", t, func() {
@@ -24,8 +26,9 @@ func TestCandidateRole(t *testing.T) {
 			replicas = append(replicas, &Replica{client: client})
 		}
 
-		role := &CandidateRole{replicas: replicas, state: &State{}}
-		So(role.RunRole(), ShouldEqual, CandidateRoleHandle)
+		role := &CandidateRole{replicas: replicas}
+		rh, _ := role.RunRole(state)
+		So(rh, ShouldEqual, CandidateRoleHandle)
 	})
 
 	Convey("Candidate requires at least half of votes to be elected", t, func() {
