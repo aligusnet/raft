@@ -3,10 +3,11 @@ package raft
 import (
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
+	"time"
 )
 
 func TestCandidateRole(t *testing.T) {
-	state := &State{}
+	state := &State{timeout: time.Millisecond * 10}
 	Convey("Replica should be elected given at least half of votes", t, func() {
 		var replicas []*Replica
 		for i := 0; i < 4; i++ {

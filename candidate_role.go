@@ -3,61 +3,61 @@ package raft
 import (
 	"context"
 	pb "github.com/alexander-ignatyev/raft/raft"
+	"math/rand"
+	"time"
 )
+
+const requestKey int = 173
 
 type CandidateRole struct {
 	replicas []*Replica
 }
 
 func (r *CandidateRole) RunRole(state *State) (RoleHandle, *State) {
-	request := requestVoteRequest(state)
-	ctx := context.Background()
+	timeout := generateTimeout(state.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx = context.WithValue(ctx, requestKey, requestVoteRequest(state))
+	defer cancel()
+
 	result := make(chan bool, len(r.replicas))
 
-	requestVote := func(peer *Replica, quit chan interface{}) {
-		for {
-			resp, err := peer.client.RequestVote(ctx, request)
-			if err == nil {
-				result <- resp.VoteGranted
-				return
-			}
-			select {
-			case <-quit:
-				return
-			default:
-			}
-		}
-	}
-
-	quits := make([]chan interface{}, 0)
 	for _, peer := range r.replicas {
-		quit := make(chan interface{}, 1)
-		quits = append(quits, quit)
-		go requestVote(peer, quit)
+		go requestVote(peer, ctx, result)
 	}
-
-	defer func() {
-		for _, quit := range quits {
-			quit <- true
-		}
-	}()
 
 	positiveVotes := 1
-	votes := 0
+	totalVotes := 0
 	for {
 		select {
 		case res := <-result:
+			totalVotes++
 			if res {
 				positiveVotes++
 			}
-			votes++
 			if positiveVotes >= requiredVotes(len(r.replicas)+1) {
 				return LeaderRoleHandle, state
 			}
-
-			if votes >= len(r.replicas) {
+			if totalVotes >= len(r.replicas) {
 				return CandidateRoleHandle, state
 			}
+		case <-ctx.Done():
+			return CandidateRoleHandle, state // timeout
+		}
+	}
+}
+
+func requestVote(peer *Replica, ctx context.Context, result chan bool) {
+	request := ctx.Value(requestKey).(*pb.RequestVoteRequest)
+	for {
+		resp, err := peer.client.RequestVote(ctx, request)
+		if err == nil {
+			result <- resp.VoteGranted
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		default:
 		}
 	}
 }
@@ -66,12 +66,8 @@ func requiredVotes(replicasNum int) int {
 	return replicasNum/2 + 1
 }
 
-func requestVoteRequest(s *State) *pb.RequestVoteRequest {
-	return &pb.RequestVoteRequest{
-		CandidateId:  0,
-		Term:         0,
-		LastLogIndex: 0,
-		LastLogTerm:  0,
-	}
-
+func generateTimeout(timeout time.Duration) time.Duration {
+	ns := timeout.Nanoseconds()
+	ns += rand.Int63n(ns)
+	return time.Nanosecond * time.Duration(ns)
 }
