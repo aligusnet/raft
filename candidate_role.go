@@ -14,9 +14,10 @@ type CandidateRole struct {
 }
 
 func (r *CandidateRole) RunRole(state *State) (RoleHandle, *State) {
+	state.currentTerm++
 	timeout := generateTimeout(state.timeout)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	ctx = context.WithValue(ctx, requestKey, requestVoteRequest(state))
+	ctx = context.WithValue(ctx, requestKey, state.requestVoteRequest())
 	defer cancel()
 
 	result := make(chan bool, len(r.replicas))

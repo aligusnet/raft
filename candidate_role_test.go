@@ -7,7 +7,7 @@ import (
 )
 
 func TestCandidateRole(t *testing.T) {
-	state := &State{timeout: time.Millisecond * 10}
+	state := newState(1, time.Millisecond*10)
 	Convey("Replica should be elected given at least half of votes", t, func() {
 		var replicas []*Replica
 		for i := 0; i < 4; i++ {
