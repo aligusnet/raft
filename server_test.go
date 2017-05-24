@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"context"
 	pb "github.com/alexander-ignatyev/raft/raft"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
@@ -12,8 +13,9 @@ func TestServerSmoke(t *testing.T) {
 		server := newServer()
 		role := newSimpleRole(server)
 		server.roles[testRole] = role
-		go server.run(testRole, nil)
-		defer server.Stop()
+		ctx, cancel := context.WithCancel(context.Background())
+		go server.run(ctx, testRole, nil)
+		defer cancel()
 
 		Convey("when we send RequestVote request to a server we should receive a valid response", func() {
 			_, err := server.RequestVote(nil, nil)
@@ -47,7 +49,7 @@ func newSimpleRole(s *Server) *simpleRole {
 	return &simpleRole{channels: s.channels}
 }
 
-func (r *simpleRole) RunRole(state *State) (RoleHandle, *State) {
+func (r *simpleRole) RunRole(ctx context.Context, state *State) (RoleHandle, *State) {
 	for {
 		select {
 		case requestVote := <-r.channels.requestVoteCh:
@@ -65,7 +67,7 @@ func (r *simpleRole) RunRole(state *State) (RoleHandle, *State) {
 				*pb.ExecuteCommandResponse
 				error
 			}{nil, nil}
-		case <-r.channels.quitCh:
+		case <-ctx.Done():
 			return ExitRoleHandle, state
 		}
 	}

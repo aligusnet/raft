@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"context"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 	"time"
@@ -15,8 +16,8 @@ func TestCandidateRole(t *testing.T) {
 			replicas = append(replicas, &Replica{client: client})
 		}
 
-		role := &CandidateRole{replicas: replicas}
-		rh, _ := role.RunRole(state)
+		role := &CandidateRole{replicas: replicas, channels: newChannelSet()}
+		rh, _ := role.RunRole(context.Background(), state)
 		So(rh, ShouldEqual, LeaderRoleHandle)
 	})
 
@@ -27,8 +28,8 @@ func TestCandidateRole(t *testing.T) {
 			replicas = append(replicas, &Replica{client: client})
 		}
 
-		role := &CandidateRole{replicas: replicas}
-		rh, _ := role.RunRole(state)
+		role := &CandidateRole{replicas: replicas, channels: newChannelSet()}
+		rh, _ := role.RunRole(context.Background(), state)
 		So(rh, ShouldEqual, CandidateRoleHandle)
 	})
 

@@ -1,5 +1,7 @@
 package raft
 
+import "context"
+
 type RoleHandle int
 
 const (
@@ -10,12 +12,12 @@ const (
 )
 
 type Role interface {
-	RunRole(state *State) (RoleHandle, *State)
+	RunRole(ctx context.Context, state *State) (RoleHandle, *State)
 }
 
 type ExitRole struct{}
 
-func (r *ExitRole) RunRole(state *State) (RoleHandle, *State) {
+func (r *ExitRole) RunRole(ctx context.Context, state *State) (RoleHandle, *State) {
 	return ExitRoleHandle, state
 }
 
