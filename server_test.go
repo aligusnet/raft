@@ -7,15 +7,14 @@ import (
 	"testing"
 )
 
-func TestServerSmoke(t *testing.T) {
+func TestServer(t *testing.T) {
 	Convey("Given Initialized server and simple role", t, func() {
 		testRole := RoleHandle(-100)
 		server := newServer()
 		role := newSimpleRole(server)
 		server.roles[testRole] = role
-		ctx, cancel := context.WithCancel(context.Background())
-		go server.run(ctx, testRole, nil)
-		defer cancel()
+		go server.run(testRole, nil)
+		defer server.Stop()
 
 		Convey("when we send RequestVote request to a server we should receive a valid response", func() {
 			_, err := server.RequestVote(nil, nil)
@@ -35,9 +34,20 @@ func TestServerSmoke(t *testing.T) {
 		Convey("server should return correct role", func() {
 			So(server.getRole(testRole), ShouldEqual, role)
 		})
+
 		Convey("server should return exitRoleInstance on unknown errorHandle", func() {
 			So(server.getRole(RoleHandle(-111)), ShouldEqual, exitRoleInstance)
 		})
+	})
+}
+
+func TestServerStop(t *testing.T) {
+	Convey("Server's Stop function should close ctx.Done channel", t, func() {
+		server := newServer()
+		server.Stop()
+		_, ok := <-server.ctx.Done()
+		So(ok, ShouldBeFalse)
+		So(server.ctx.Err(), ShouldEqual, context.Canceled)
 	})
 }
 
