@@ -5,6 +5,7 @@ import (
 	pb "github.com/alexander-ignatyev/raft/raft"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"time"
 )
 
 type clientMock struct {
@@ -17,6 +18,8 @@ type clientMock struct {
 	executeCommandIndex int
 }
 
+var replicaTestTimeout time.Duration = 5 * time.Millisecond
+
 func newRequestVoteClient(votes ...bool) *clientMock {
 	var requestVote []*pb.RequestVoteResponse
 	for _, vote := range votes {
@@ -28,6 +31,7 @@ func newRequestVoteClient(votes ...bool) *clientMock {
 func (c *clientMock) RequestVote(ctx context.Context,
 	in *pb.RequestVoteRequest,
 	opts ...grpc.CallOption) (*pb.RequestVoteResponse, error) {
+	time.Sleep(replicaTestTimeout) // processing time
 	if len(c.requestVote) > c.requestVoteIndex {
 		response := c.requestVote[c.requestVoteIndex]
 		c.requestVoteIndex++
@@ -40,6 +44,7 @@ func (c *clientMock) RequestVote(ctx context.Context,
 func (c *clientMock) AppendEntries(ctx context.Context,
 	in *pb.AppendEntriesRequest,
 	opts ...grpc.CallOption) (*pb.AppendEntriesResponse, error) {
+	time.Sleep(replicaTestTimeout) // processing time
 	if len(c.appendEntries) > c.appendEntriesIndex {
 		response := c.appendEntries[c.appendEntriesIndex]
 		c.appendEntriesIndex++
@@ -52,6 +57,7 @@ func (c *clientMock) AppendEntries(ctx context.Context,
 func (c *clientMock) ExecuteCommand(ctx context.Context,
 	in *pb.ExecuteCommandRequest,
 	opts ...grpc.CallOption) (*pb.ExecuteCommandResponse, error) {
+	time.Sleep(replicaTestTimeout) // processing time
 	if len(c.executeCommand) > c.executeCommandIndex {
 		response := c.executeCommand[c.executeCommandIndex]
 		c.executeCommandIndex++
