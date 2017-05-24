@@ -1,7 +1,6 @@
 package raft
 
 import (
-	pb "github.com/alexander-ignatyev/raft/raft"
 	"context"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
@@ -17,14 +16,14 @@ func TestCandidateRole(t *testing.T) {
 			replicas = append(replicas, &Replica{client: client})
 		}
 
-		role := &CandidateRole{replicas: replicas, channels: newChannelSet()}
+		role := &CandidateRole{replicas: replicas, balancer: newBalancer()}
 		rh, _ := role.RunRole(context.Background(), state)
 		So(rh, ShouldEqual, LeaderRoleHandle)
 	})
 
 	Convey("Replica should response on requestVote", t, func(c C) {
 		state := newState(1, time.Millisecond*10)
-		channels := newChannelSet()
+		balancer := newBalancer()
 		var replicas []*Replica
 		for i := 0; i < 4; i++ {
 			client := newRequestVoteClient(i%2 == 0)
@@ -32,27 +31,20 @@ func TestCandidateRole(t *testing.T) {
 		}
 
 		go func() {
-			time.Sleep(2*time.Millisecond)
+			time.Sleep(2 * time.Millisecond)
 			peerState := newState(2, time.Millisecond*10)
-			peerState.currentTerm=state.currentTerm+1
+			peerState.currentTerm = state.currentTerm + 1
 			peerState.log.Append(1, []byte("cmd1"))
 			request := peerState.requestVoteRequest()
-			resultCh := make(chan struct {
-				*pb.RequestVoteResponse
-				error
-			}, 1)
-			msg := &requestVoteMessage{context.Background(), request, resultCh}
-			channels.requestVoteCh <- msg
-			result := <-resultCh
-			c.So(result.VoteGranted, ShouldBeTrue)
-			c.So(result.error, ShouldBeNil)
+			response, err := balancer.RequestVote(context.Background(), request)
+			c.So(response.VoteGranted, ShouldBeTrue)
+			c.So(err, ShouldBeNil)
 		}()
 
-		role := &CandidateRole{replicas: replicas, channels: channels}
+		role := &CandidateRole{replicas: replicas, balancer: balancer}
 		rh, _ := role.RunRole(context.Background(), state)
 		c.So(rh, ShouldEqual, CandidateRoleHandle)
 	})
-
 
 	Convey("Replica should not be elected given less than half of votes", t, func() {
 		state := newState(1, time.Millisecond*10)
@@ -62,7 +54,7 @@ func TestCandidateRole(t *testing.T) {
 			replicas = append(replicas, &Replica{client: client})
 		}
 
-		role := &CandidateRole{replicas: replicas, channels: newChannelSet()}
+		role := &CandidateRole{replicas: replicas, balancer: newBalancer()}
 		rh, _ := role.RunRole(context.Background(), state)
 		So(rh, ShouldEqual, CandidateRoleHandle)
 	})
@@ -75,7 +67,7 @@ func TestCandidateRole(t *testing.T) {
 			replicas = append(replicas, &Replica{client: client})
 		}
 
-		role := &CandidateRole{replicas: replicas, channels: newChannelSet()}
+		role := &CandidateRole{replicas: replicas, balancer: newBalancer()}
 		rh, _ := role.RunRole(context.Background(), state)
 		So(rh, ShouldEqual, CandidateRoleHandle)
 	})
@@ -89,7 +81,7 @@ func TestCandidateRole(t *testing.T) {
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
-		role := &CandidateRole{replicas: replicas, channels: newChannelSet()}
+		role := &CandidateRole{replicas: replicas, balancer: newBalancer()}
 		go func() {
 			time.Sleep(2 * time.Millisecond)
 			cancel()

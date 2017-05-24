@@ -12,7 +12,7 @@ const requestKey int = 173
 
 type CandidateRole struct {
 	replicas []*Replica
-	channels *channelSet
+	balancer *Balancer
 }
 
 func (r *CandidateRole) RunRole(ctx context.Context, state *State) (RoleHandle, *State) {
@@ -32,7 +32,7 @@ func (r *CandidateRole) RunRole(ctx context.Context, state *State) (RoleHandle, 
 	positiveVotes := 1
 	for {
 		select {
-		case requestVote := <-r.channels.requestVoteCh:
+		case requestVote := <-r.balancer.requestVoteCh:
 			response := state.requestVoteResponse(requestVote.in)
 			if response.VoteGranted {
 				positiveVotes--
@@ -41,12 +41,12 @@ func (r *CandidateRole) RunRole(ctx context.Context, state *State) (RoleHandle, 
 				*pb.RequestVoteResponse
 				error
 			}{response, nil}
-		case appendEntries := <-r.channels.appendEntriesCh:
+		case appendEntries := <-r.balancer.appendEntriesCh:
 			appendEntries.out <- struct {
 				*pb.AppendEntriesResponse
 				error
 			}{nil, fmt.Errorf("Not yet implemented")}
-		case executeCommand := <-r.channels.executeCommandCh:
+		case executeCommand := <-r.balancer.executeCommandCh:
 			executeCommand.out <- struct {
 				*pb.ExecuteCommandResponse
 				error
