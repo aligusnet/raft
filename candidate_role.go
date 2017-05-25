@@ -37,20 +37,11 @@ func (r *CandidateRole) RunRole(ctx context.Context, state *State) (RoleHandle, 
 			if response.VoteGranted {
 				positiveVotes--
 			}
-			requestVote.out <- struct {
-				*pb.RequestVoteResponse
-				error
-			}{response, nil}
+			requestVote.send(response)
 		case appendEntries := <-r.dispatcher.appendEntriesCh:
-			appendEntries.out <- struct {
-				*pb.AppendEntriesResponse
-				error
-			}{nil, fmt.Errorf("Not yet implemented")}
+			appendEntries.sendError(fmt.Errorf("Not yet implemented"))
 		case executeCommand := <-r.dispatcher.executeCommandCh:
-			executeCommand.out <- struct {
-				*pb.ExecuteCommandResponse
-				error
-			}{nil, fmt.Errorf("Not yet implemented")}
+			executeCommand.sendError(fmt.Errorf("Not yet implemented"))
 		case res := <-result:
 			if res {
 				positiveVotes++

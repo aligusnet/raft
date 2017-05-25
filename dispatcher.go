@@ -59,6 +59,20 @@ type requestVoteMessage struct {
 	}
 }
 
+func (msg *requestVoteMessage) send(response *pb.RequestVoteResponse) {
+	msg.out <- struct {
+		*pb.RequestVoteResponse
+		error
+	}{response, nil}
+}
+
+func (msg *requestVoteMessage) sendError(err error) {
+	msg.out <- struct {
+		*pb.RequestVoteResponse
+		error
+	}{nil, err}
+}
+
 type appendEntriesMessage struct {
 	ctx context.Context
 	in  *pb.AppendEntriesRequest
@@ -68,6 +82,20 @@ type appendEntriesMessage struct {
 	}
 }
 
+func (msg *appendEntriesMessage) send(response *pb.AppendEntriesResponse) {
+	msg.out <- struct {
+		*pb.AppendEntriesResponse
+		error
+	}{response, nil}
+}
+
+func (msg *appendEntriesMessage) sendError(err error) {
+	msg.out <- struct {
+		*pb.AppendEntriesResponse
+		error
+	}{nil, err}
+}
+
 type executeCommandMessage struct {
 	ctx context.Context
 	in  *pb.ExecuteCommandRequest
@@ -75,4 +103,18 @@ type executeCommandMessage struct {
 		*pb.ExecuteCommandResponse
 		error
 	}
+}
+
+func (msg *executeCommandMessage) send(response *pb.ExecuteCommandResponse) {
+	msg.out <- struct {
+		*pb.ExecuteCommandResponse
+		error
+	}{response, nil}
+}
+
+func (msg *executeCommandMessage) sendError(err error) {
+	msg.out <- struct {
+		*pb.ExecuteCommandResponse
+		error
+	}{nil, err}
 }

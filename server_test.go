@@ -63,20 +63,11 @@ func (r *simpleRole) RunRole(ctx context.Context, state *State) (RoleHandle, *St
 	for {
 		select {
 		case requestVote := <-r.dispatcher.requestVoteCh:
-			requestVote.out <- struct {
-				*pb.RequestVoteResponse
-				error
-			}{nil, nil}
+			requestVote.send(&pb.RequestVoteResponse{})
 		case appendEntries := <-r.dispatcher.appendEntriesCh:
-			appendEntries.out <- struct {
-				*pb.AppendEntriesResponse
-				error
-			}{nil, nil}
+			appendEntries.send(&pb.AppendEntriesResponse{})
 		case executeCommand := <-r.dispatcher.executeCommandCh:
-			executeCommand.out <- struct {
-				*pb.ExecuteCommandResponse
-				error
-			}{nil, nil}
+			executeCommand.send(&pb.ExecuteCommandResponse{})
 		case <-ctx.Done():
 			return ExitRoleHandle, state
 		}
