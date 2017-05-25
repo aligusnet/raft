@@ -4,11 +4,19 @@ import (
 	pb "github.com/alexander-ignatyev/raft/raft"
 )
 
-type Log interface {
-	Append(term int64, cmd []byte) int64 // returns index of appended entry
+type LogReader interface {
 	Get(index int64) *pb.LogEntry
 	Size() int64
+}
+
+type LogWriter interface {
+	Append(term int64, cmd []byte) int64 // returns index of appended entry
 	EraseAfter(index int64)
+}
+
+type Log interface {
+	LogReader
+	LogWriter
 }
 
 func NewLog() Log {

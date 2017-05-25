@@ -63,5 +63,31 @@ func (s *State) requestVoteResponse(in *pb.RequestVoteRequest) *pb.RequestVoteRe
 		s.votedFor = in.CandidateId
 	}
 	return response
+}
 
+func (s *State) appendEntriesRequestBuilder() func(LogReader, int64) *pb.AppendEntriesRequest {
+	term := s.currentTerm
+	leaderId := s.id
+
+	builder := func(log LogReader, peerNextLogIndex int64) *pb.AppendEntriesRequest {
+		prevLogIndex := peerNextLogIndex - 1
+		prevLogTerm := int64(-1)
+		if prevLogIndex >= 0 {
+			prevLogTerm = s.log.Get(prevLogIndex).Term
+		}
+		request := &pb.AppendEntriesRequest{
+			Term:         term,
+			LeaderId:     leaderId,
+			PrevLogIndex: prevLogIndex,
+			PrevLogTerm:  prevLogTerm,
+			CommitIndex:  0, // TODO: fill CommitIndex
+		}
+
+		for i := peerNextLogIndex; i < log.Size(); i++ {
+			request.Entries = append(request.Entries, log.Get(i))
+		}
+
+		return request
+	}
+	return builder
 }

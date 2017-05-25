@@ -129,3 +129,45 @@ func TestState_RequestVote(t *testing.T) {
 		})
 	})
 }
+
+func TestState_AppendEntries(t *testing.T) {
+	Convey("Given initialized state", t, func() {
+		state := newState(1, time.Millisecond*10)
+		state.currentTerm = 10
+		state.log.Append(8, []byte("cmd1"))
+		state.log.Append(8, []byte("cmd2"))
+		state.log.Append(9, []byte("cmd3"))
+
+		build := state.appendEntriesRequestBuilder()
+
+		Convey("we should create hearbeat message", func() {
+			request := build(state.log, 3)
+			So(request.Term, ShouldEqual, state.currentTerm)
+			So(request.PrevLogIndex, ShouldEqual, 2)
+			So(request.PrevLogTerm, ShouldEqual, 9)
+			So(request.CommitIndex, ShouldEqual, 0)
+			So(request.Entries, ShouldBeEmpty)
+		})
+
+		Convey("we should create appendEntries request", func() {
+			Convey("for peers behind the leader", func() {
+				request := build(state.log, 1)
+				So(request.Term, ShouldEqual, state.currentTerm)
+				So(request.PrevLogIndex, ShouldEqual, 0)
+				So(request.PrevLogTerm, ShouldEqual, 8)
+				So(request.CommitIndex, ShouldEqual, 0)
+				So(len(request.Entries), ShouldEqual, 2)
+			})
+
+			Convey("for peers with empty log", func() {
+				request := build(state.log, 0)
+				So(request.Term, ShouldEqual, state.currentTerm)
+				So(request.PrevLogIndex, ShouldEqual, -1)
+				So(request.PrevLogTerm, ShouldEqual, -1)
+				So(request.CommitIndex, ShouldEqual, 0)
+				So(len(request.Entries), ShouldEqual, 3)
+			})
+		})
+
+	})
+}
