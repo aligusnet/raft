@@ -5,14 +5,14 @@ import (
 )
 
 type Server struct {
-	*Balancer
+	*Dispatcher
 	ctx    context.Context
 	cancel context.CancelFunc
 	roles  map[RoleHandle]Role
 }
 
 func newServer() *Server {
-	s := &Server{Balancer: newBalancer(),
+	s := &Server{Dispatcher: newDispatcher(),
 		roles: make(map[RoleHandle]Role),
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())

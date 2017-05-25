@@ -52,27 +52,27 @@ func TestServerStop(t *testing.T) {
 }
 
 type simpleRole struct {
-	balancer *Balancer
+	dispatcher *Dispatcher
 }
 
 func newSimpleRole(s *Server) *simpleRole {
-	return &simpleRole{balancer: s.Balancer}
+	return &simpleRole{dispatcher: s.Dispatcher}
 }
 
 func (r *simpleRole) RunRole(ctx context.Context, state *State) (RoleHandle, *State) {
 	for {
 		select {
-		case requestVote := <-r.balancer.requestVoteCh:
+		case requestVote := <-r.dispatcher.requestVoteCh:
 			requestVote.out <- struct {
 				*pb.RequestVoteResponse
 				error
 			}{nil, nil}
-		case appendEntries := <-r.balancer.appendEntriesCh:
+		case appendEntries := <-r.dispatcher.appendEntriesCh:
 			appendEntries.out <- struct {
 				*pb.AppendEntriesResponse
 				error
 			}{nil, nil}
-		case executeCommand := <-r.balancer.executeCommandCh:
+		case executeCommand := <-r.dispatcher.executeCommandCh:
 			executeCommand.out <- struct {
 				*pb.ExecuteCommandResponse
 				error

@@ -5,47 +5,47 @@ import (
 	pb "github.com/alexander-ignatyev/raft/raft"
 )
 
-type Balancer struct {
+type Dispatcher struct {
 	requestVoteCh    chan *requestVoteMessage
 	appendEntriesCh  chan *appendEntriesMessage
 	executeCommandCh chan *executeCommandMessage
 }
 
-func newBalancer() *Balancer {
-	return &Balancer{requestVoteCh: make(chan *requestVoteMessage),
+func newDispatcher() *Dispatcher {
+	return &Dispatcher{requestVoteCh: make(chan *requestVoteMessage),
 		appendEntriesCh:  make(chan *appendEntriesMessage),
 		executeCommandCh: make(chan *executeCommandMessage)}
 }
 
-func (c *Balancer) RequestVote(ctx context.Context, in *pb.RequestVoteRequest) (*pb.RequestVoteResponse, error) {
+func (d *Dispatcher) RequestVote(ctx context.Context, in *pb.RequestVoteRequest) (*pb.RequestVoteResponse, error) {
 	resultCh := make(chan struct {
 		*pb.RequestVoteResponse
 		error
 	}, 1)
 	msg := &requestVoteMessage{ctx, in, resultCh}
-	c.requestVoteCh <- msg
+	d.requestVoteCh <- msg
 	result := <-resultCh
 	return result.RequestVoteResponse, result.error
 }
 
-func (c *Balancer) AppendEntries(ctx context.Context, in *pb.AppendEntriesRequest) (*pb.AppendEntriesResponse, error) {
+func (d *Dispatcher) AppendEntries(ctx context.Context, in *pb.AppendEntriesRequest) (*pb.AppendEntriesResponse, error) {
 	resultCh := make(chan struct {
 		*pb.AppendEntriesResponse
 		error
 	}, 1)
 	msg := &appendEntriesMessage{ctx, in, resultCh}
-	c.appendEntriesCh <- msg
+	d.appendEntriesCh <- msg
 	result := <-resultCh
 	return result.AppendEntriesResponse, result.error
 }
 
-func (c *Balancer) ExecuteCommand(ctx context.Context, in *pb.ExecuteCommandRequest) (*pb.ExecuteCommandResponse, error) {
+func (d *Dispatcher) ExecuteCommand(ctx context.Context, in *pb.ExecuteCommandRequest) (*pb.ExecuteCommandResponse, error) {
 	resultCh := make(chan struct {
 		*pb.ExecuteCommandResponse
 		error
 	}, 1)
 	msg := &executeCommandMessage{ctx, in, resultCh}
-	c.executeCommandCh <- msg
+	d.executeCommandCh <- msg
 	result := <-resultCh
 	return result.ExecuteCommandResponse, result.error
 }

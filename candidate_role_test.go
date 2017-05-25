@@ -16,14 +16,14 @@ func TestCandidateRole(t *testing.T) {
 			replicas = append(replicas, &Replica{client: client})
 		}
 
-		role := &CandidateRole{replicas: replicas, balancer: newBalancer()}
+		role := &CandidateRole{replicas: replicas, dispatcher: newDispatcher()}
 		rh, _ := role.RunRole(context.Background(), state)
 		So(rh, ShouldEqual, LeaderRoleHandle)
 	})
 
 	Convey("Replica should response on requestVote", t, func(c C) {
 		state := newState(1, time.Millisecond*10)
-		balancer := newBalancer()
+		dispatcher := newDispatcher()
 		var replicas []*Replica
 		for i := 0; i < 4; i++ {
 			client := newRequestVoteClient(i%2 == 0)
@@ -36,12 +36,12 @@ func TestCandidateRole(t *testing.T) {
 			peerState.currentTerm = state.currentTerm + 1
 			peerState.log.Append(1, []byte("cmd1"))
 			request := peerState.requestVoteRequest()
-			response, err := balancer.RequestVote(context.Background(), request)
+			response, err := dispatcher.RequestVote(context.Background(), request)
 			c.So(response.VoteGranted, ShouldBeTrue)
 			c.So(err, ShouldBeNil)
 		}()
 
-		role := &CandidateRole{replicas: replicas, balancer: balancer}
+		role := &CandidateRole{replicas: replicas, dispatcher: dispatcher}
 		rh, _ := role.RunRole(context.Background(), state)
 		c.So(rh, ShouldEqual, CandidateRoleHandle)
 	})
@@ -54,7 +54,7 @@ func TestCandidateRole(t *testing.T) {
 			replicas = append(replicas, &Replica{client: client})
 		}
 
-		role := &CandidateRole{replicas: replicas, balancer: newBalancer()}
+		role := &CandidateRole{replicas: replicas, dispatcher: newDispatcher()}
 		rh, _ := role.RunRole(context.Background(), state)
 		So(rh, ShouldEqual, CandidateRoleHandle)
 	})
@@ -67,7 +67,7 @@ func TestCandidateRole(t *testing.T) {
 			replicas = append(replicas, &Replica{client: client})
 		}
 
-		role := &CandidateRole{replicas: replicas, balancer: newBalancer()}
+		role := &CandidateRole{replicas: replicas, dispatcher: newDispatcher()}
 		rh, _ := role.RunRole(context.Background(), state)
 		So(rh, ShouldEqual, CandidateRoleHandle)
 	})
@@ -81,7 +81,7 @@ func TestCandidateRole(t *testing.T) {
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
-		role := &CandidateRole{replicas: replicas, balancer: newBalancer()}
+		role := &CandidateRole{replicas: replicas, dispatcher: newDispatcher()}
 		go func() {
 			time.Sleep(2 * time.Millisecond)
 			cancel()
