@@ -39,9 +39,13 @@ func (r *CandidateRole) RunRole(ctx context.Context, state *State) (RoleHandle, 
 			}
 			requestVote.send(response)
 		case appendEntries := <-r.dispatcher.appendEntriesCh:
-			appendEntries.sendError(fmt.Errorf("Not yet implemented"))
+			response, accepted := state.appendEntriesReesponse(appendEntries.in)
+			appendEntries.send(response)
+			if accepted {
+				return FollowerRoleHandle, state
+			}
 		case executeCommand := <-r.dispatcher.executeCommandCh:
-			executeCommand.sendError(fmt.Errorf("Not yet implemented"))
+			executeCommand.sendError(fmt.Errorf("Leader is unknown"))
 		case res := <-result:
 			if res {
 				positiveVotes++
@@ -55,10 +59,8 @@ func (r *CandidateRole) RunRole(ctx context.Context, state *State) (RoleHandle, 
 			} else if ctx.Err() == context.Canceled {
 				return ExitRoleHandle, state
 			} else {
-				// ???
-				return ExitRoleHandle, state
+				panic(fmt.Sprintf("Unexpected Context.Err: %v", ctx.Err()))
 			}
-
 		}
 	}
 }
