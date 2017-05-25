@@ -91,3 +91,29 @@ func (s *State) appendEntriesRequestBuilder() func(LogReader, int64) *pb.AppendE
 	}
 	return builder
 }
+
+// returns AppendEntriesResponse, true if request is accepted otherwise false
+func (s *State) appendEntriesReesponse(request *pb.AppendEntriesRequest) (*pb.AppendEntriesResponse, bool) {
+	response := &pb.AppendEntriesResponse{}
+	if request.Term < s.currentTerm {
+		response.Term = s.currentTerm
+		response.Success = false
+		return response, false
+	} else {
+		lastLogIndex := s.log.Size() - 1
+		s.currentTerm = request.Term
+		response.Term = s.currentTerm
+		response.Success = false
+		if lastLogIndex >= request.PrevLogIndex {
+			prevLogTerm := s.log.Get(request.PrevLogIndex).Term
+			if prevLogTerm == request.PrevLogTerm {
+				response.Success = true
+				s.log.EraseAfter(request.PrevLogIndex)
+				for _, entry := range request.Entries {
+					s.log.Append(entry.Term, entry.Command)
+				}
+			}
+		}
+		return response, true
+	}
+}

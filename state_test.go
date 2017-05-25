@@ -169,5 +169,52 @@ func TestState_AppendEntries(t *testing.T) {
 			})
 		})
 
+		peerState := newState(2, time.Millisecond*10)
+		peerState.log.Append(8, []byte("cmd1"))
+		peerState.log.Append(8, []byte("cmd2"))
+		peerState.log.Append(9, []byte("cmd3"))
+
+		Convey("we should reject appendEntries with outdated Term", func() {
+			peerState.currentTerm = state.currentTerm - 1
+			request := peerState.appendEntriesRequestBuilder()(peerState.log, 1)
+			response, accepted := state.appendEntriesReesponse(request)
+			So(accepted, ShouldBeFalse)
+			So(response.Term, ShouldEqual, state.currentTerm)
+			So(response.Success, ShouldBeFalse)
+		})
+		Convey("we should accept correct heartbeat", func() {
+			peerState.currentTerm = state.currentTerm
+			request := peerState.appendEntriesRequestBuilder()(peerState.log, 3)
+			So(request.Entries, ShouldBeEmpty)
+			response, accepted := state.appendEntriesReesponse(request)
+			So(accepted, ShouldBeTrue)
+			So(response.Term, ShouldEqual, state.currentTerm)
+			So(response.Success, ShouldBeTrue)
+		})
+		Convey("we should request for missed entries", func() {
+			peerState.log.Append(9, []byte("cmd4"))
+			peerState.currentTerm = state.currentTerm
+			request := peerState.appendEntriesRequestBuilder()(peerState.log, 4)
+			response, accepted := state.appendEntriesReesponse(request)
+			So(accepted, ShouldBeTrue)
+			So(response.Term, ShouldEqual, state.currentTerm)
+			So(response.Success, ShouldBeFalse)
+		})
+		Convey("we should apply new entries", func() {
+			peerState.log.EraseAfter(1)
+			peerState.log.Append(10, []byte("cmd10"))
+			peerState.log.Append(10, []byte("cmd11"))
+			peerState.log.Append(10, []byte("cmd12"))
+			peerState.currentTerm = state.currentTerm
+			request := peerState.appendEntriesRequestBuilder()(peerState.log, 2)
+			response, accepted := state.appendEntriesReesponse(request)
+			So(accepted, ShouldBeTrue)
+			So(response.Term, ShouldEqual, state.currentTerm)
+			So(response.Success, ShouldBeTrue)
+			So(state.log.Size(), ShouldEqual, 5)
+			So(state.log.Get(2).Command, ShouldResemble, []byte("cmd10"))
+			So(state.log.Get(3).Command, ShouldResemble, []byte("cmd11"))
+			So(state.log.Get(4).Command, ShouldResemble, []byte("cmd12"))
+		})
 	})
 }
