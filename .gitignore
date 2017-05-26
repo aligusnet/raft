@@ -1,1 +1,9 @@
 .idea/
+*.log.*
+*.INFO
+*.WARNING
+*.ERROR
+*.FATAL
+
+test/test
+test/server/server

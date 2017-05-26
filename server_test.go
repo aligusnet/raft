@@ -10,24 +10,24 @@ import (
 func TestServer(t *testing.T) {
 	Convey("Given Initialized server and simple role", t, func() {
 		testRole := RoleHandle(-100)
-		server := newServer()
+		server := newServer(context.Background())
 		role := newSimpleRole(server)
 		server.roles[testRole] = role
 		go server.run(testRole, nil)
 		defer server.Stop()
 
 		Convey("when we send RequestVote request to a server we should receive a valid response", func() {
-			_, err := server.RequestVote(nil, nil)
+			_, err := server.dispatcher.RequestVote(nil, nil)
 			So(err, ShouldBeNil)
 		})
 
 		Convey("when we send AppendEntries request to a server we should receive a valid response", func() {
-			_, err := server.AppendEntries(nil, nil)
+			_, err := server.dispatcher.AppendEntries(nil, nil)
 			So(err, ShouldBeNil)
 		})
 
 		Convey("when we send ExecuteCommand request to a server we should receive a valid response", func() {
-			_, err := server.ExecuteCommand(nil, nil)
+			_, err := server.dispatcher.ExecuteCommand(nil, nil)
 			So(err, ShouldBeNil)
 		})
 
@@ -43,7 +43,7 @@ func TestServer(t *testing.T) {
 
 func TestServerStop(t *testing.T) {
 	Convey("Server's Stop function should close ctx.Done channel", t, func() {
-		server := newServer()
+		server := newServer(context.Background())
 		server.Stop()
 		_, ok := <-server.ctx.Done()
 		So(ok, ShouldBeFalse)
@@ -56,7 +56,7 @@ type simpleRole struct {
 }
 
 func newSimpleRole(s *Server) *simpleRole {
-	return &simpleRole{dispatcher: s.Dispatcher}
+	return &simpleRole{dispatcher: s.dispatcher}
 }
 
 func (r *simpleRole) RunRole(ctx context.Context, state *State) (RoleHandle, *State) {

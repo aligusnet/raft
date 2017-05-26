@@ -11,8 +11,15 @@ import (
 const requestKey int = 173
 
 type CandidateRole struct {
-	replicas   []*Replica
 	dispatcher *Dispatcher
+	replicas   map[int64]*Replica
+}
+
+func newCandidateRole(dispatcher *Dispatcher) *CandidateRole {
+	return &CandidateRole{
+		dispatcher: dispatcher,
+		replicas:   make(map[int64]*Replica),
+	}
 }
 
 func (r *CandidateRole) RunRole(ctx context.Context, state *State) (RoleHandle, *State) {

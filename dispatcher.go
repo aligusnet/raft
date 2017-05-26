@@ -1,8 +1,8 @@
 package raft
 
 import (
-	"context"
 	pb "github.com/alexander-ignatyev/raft/raft"
+	"golang.org/x/net/context"
 )
 
 type Dispatcher struct {
