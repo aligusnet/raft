@@ -48,15 +48,21 @@ func (s *State) requestVoteRequest() *pb.RequestVoteRequest {
 
 func (s *State) requestVoteResponse(in *pb.RequestVoteRequest) *pb.RequestVoteResponse {
 	response := &pb.RequestVoteResponse{Term: s.currentTerm}
-	lastLogIndex, _ := s.lastLogIndexAndTerm()
-	if s.votedFor != s.id {
+	lastLogIndex, lastLogTerm := s.lastLogIndexAndTerm()
+	if s.votedFor != s.id && s.currentTerm == in.Term {
+		// we shot not grant vote if we've voted at this term
 		response.VoteGranted = false
 	} else if in.Term < s.currentTerm {
+		// we don't vote for candidates with stale Term
 		response.VoteGranted = false
-	} else if in.LastLogIndex > lastLogIndex {
+	} else if in.LastLogTerm < lastLogTerm { // log's up-to-date checking
+		response.VoteGranted = false
+	} else if in.LastLogTerm > lastLogTerm {
 		response.VoteGranted = true
-	} else if in.LastLogIndex == lastLogIndex {
+	} else if in.LastLogIndex >= lastLogIndex {
 		response.VoteGranted = true
+	} else if in.LastLogIndex < lastLogIndex {
+		response.VoteGranted = false
 	}
 
 	if response.VoteGranted {
@@ -68,6 +74,7 @@ func (s *State) requestVoteResponse(in *pb.RequestVoteRequest) *pb.RequestVoteRe
 func (s *State) appendEntriesRequestBuilder() func(LogReader, int64) *pb.AppendEntriesRequest {
 	term := s.currentTerm
 	leaderId := s.id
+	commitIndex := s.commitIndex
 
 	builder := func(log LogReader, peerNextLogIndex int64) *pb.AppendEntriesRequest {
 		prevLogIndex := peerNextLogIndex - 1
@@ -80,7 +87,7 @@ func (s *State) appendEntriesRequestBuilder() func(LogReader, int64) *pb.AppendE
 			LeaderId:     leaderId,
 			PrevLogIndex: prevLogIndex,
 			PrevLogTerm:  prevLogTerm,
-			CommitIndex:  0, // TODO: fill CommitIndex
+			CommitIndex:  commitIndex,
 		}
 
 		for i := peerNextLogIndex; i < log.Size(); i++ {

@@ -52,8 +52,15 @@ func TestState_RequestVote(t *testing.T) {
 		request := &pb.RequestVoteRequest{CandidateId: 10}
 		Convey("Given requestVore request with in.Term > currentTerm", func() {
 			request.Term = state.currentTerm + 1
+			Convey("and in.LastLogTerm < lastLogIndex we should not vote for the candidate", func() {
+				request.LastLogIndex = 4
+				request.LastLogTerm = 8
+				response := state.requestVoteResponse(request)
+				So(response.VoteGranted, ShouldBeFalse)
+			})
 			Convey("and in.LastLogIndex > lastLogIndex we should vote for the candidate", func() {
 				request.LastLogIndex = 4
+				request.LastLogTerm = 9
 				response := state.requestVoteResponse(request)
 				So(response.VoteGranted, ShouldBeTrue)
 				So(response.Term, ShouldBeLessThanOrEqualTo, request.Term)
@@ -61,6 +68,7 @@ func TestState_RequestVote(t *testing.T) {
 			})
 			Convey("and in.LastLogIndex == lastLogIndex we should vote for the candidate", func() {
 				request.LastLogIndex = 2
+				request.LastLogTerm = 9
 				response := state.requestVoteResponse(request)
 				So(response.VoteGranted, ShouldBeTrue)
 				So(response.Term, ShouldBeLessThanOrEqualTo, request.Term)
@@ -79,6 +87,7 @@ func TestState_RequestVote(t *testing.T) {
 			request.Term = state.currentTerm
 			Convey("and in.LastLogIndex > lastLogIndex we should vote for the candidate", func() {
 				request.LastLogIndex = 4
+				request.LastLogTerm = 9
 				response := state.requestVoteResponse(request)
 				So(response.VoteGranted, ShouldBeTrue)
 				So(response.Term, ShouldEqual, request.Term)
@@ -86,6 +95,7 @@ func TestState_RequestVote(t *testing.T) {
 			})
 			Convey("and in.LastLogIndex == lastLogIndex we should vote for the candidate", func() {
 				request.LastLogIndex = 2
+				request.LastLogTerm = 9
 				response := state.requestVoteResponse(request)
 				So(response.VoteGranted, ShouldBeTrue)
 				So(response.Term, ShouldEqual, request.Term)
