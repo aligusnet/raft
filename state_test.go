@@ -187,7 +187,7 @@ func TestState_AppendEntries(t *testing.T) {
 		Convey("we should reject appendEntries with outdated Term", func() {
 			peerState.currentTerm = state.currentTerm - 1
 			request := peerState.appendEntriesRequestBuilder()(peerState.log, 1)
-			response, accepted := state.appendEntriesReesponse(request)
+			response, accepted := state.appendEntriesResponse(request)
 			So(accepted, ShouldBeFalse)
 			So(response.Term, ShouldEqual, state.currentTerm)
 			So(response.Success, ShouldBeFalse)
@@ -196,7 +196,7 @@ func TestState_AppendEntries(t *testing.T) {
 			peerState.currentTerm = state.currentTerm
 			request := peerState.appendEntriesRequestBuilder()(peerState.log, 3)
 			So(request.Entries, ShouldBeEmpty)
-			response, accepted := state.appendEntriesReesponse(request)
+			response, accepted := state.appendEntriesResponse(request)
 			So(accepted, ShouldBeTrue)
 			So(response.Term, ShouldEqual, state.currentTerm)
 			So(response.Success, ShouldBeTrue)
@@ -205,7 +205,7 @@ func TestState_AppendEntries(t *testing.T) {
 			peerState.log.Append(9, []byte("cmd4"))
 			peerState.currentTerm = state.currentTerm
 			request := peerState.appendEntriesRequestBuilder()(peerState.log, 4)
-			response, accepted := state.appendEntriesReesponse(request)
+			response, accepted := state.appendEntriesResponse(request)
 			So(accepted, ShouldBeTrue)
 			So(response.Term, ShouldEqual, state.currentTerm)
 			So(response.Success, ShouldBeFalse)
@@ -217,7 +217,7 @@ func TestState_AppendEntries(t *testing.T) {
 			peerState.log.Append(10, []byte("cmd12"))
 			peerState.currentTerm = state.currentTerm
 			request := peerState.appendEntriesRequestBuilder()(peerState.log, 2)
-			response, accepted := state.appendEntriesReesponse(request)
+			response, accepted := state.appendEntriesResponse(request)
 			So(accepted, ShouldBeTrue)
 			So(response.Term, ShouldEqual, state.currentTerm)
 			So(response.Success, ShouldBeTrue)

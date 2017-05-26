@@ -1,0 +1,133 @@
+package raft
+
+import (
+	"context"
+	pb "github.com/alexander-ignatyev/raft/raft"
+	. "github.com/smartystreets/goconvey/convey"
+	"testing"
+	"time"
+)
+
+func TestLeaderRole(t *testing.T) {
+	Convey("Replica should exit given cancelation", t, func() {
+		state := newState(1, time.Millisecond*10)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		role := &LeaderRole{dispatcher: newDispatcher()}
+		go func() {
+			time.Sleep(2 * time.Millisecond)
+			cancel()
+		}()
+		rh, _ := role.RunRole(ctx, state)
+		So(rh, ShouldEqual, ExitRoleHandle)
+	})
+
+	Convey("Replica should respond on requestVote", t, func(c C) {
+		Convey("giving Term > currentTerm it should grant vote", func() {
+			state := newState(1, time.Millisecond*10)
+			state.currentTerm = 10
+			dispatcher := newDispatcher()
+
+			go func() {
+				time.Sleep(2 * time.Millisecond)
+				peerState := newState(2, time.Millisecond*10)
+				peerState.currentTerm = state.currentTerm + 1
+				peerState.log.Append(1, []byte("cmd1"))
+				request := peerState.requestVoteRequest()
+				response, err := dispatcher.RequestVote(context.Background(), request)
+				c.So(err, ShouldBeNil)
+				c.So(response.VoteGranted, ShouldBeTrue)
+			}()
+
+			role := &LeaderRole{dispatcher: dispatcher}
+			role.RunRole(context.Background(), state)
+		})
+
+		Convey(" giving Term <= currentTerm it should reject", func() {
+			state := newState(1, time.Millisecond*10)
+			state.currentTerm = 10
+			dispatcher := newDispatcher()
+			ctx, cancel := context.WithCancel(context.Background())
+
+			go func() {
+				time.Sleep(2 * time.Millisecond)
+				peerState := newState(2, time.Millisecond*10)
+				peerState.currentTerm = state.currentTerm - 1
+				peerState.log.Append(1, []byte("cmd1"))
+				request := peerState.requestVoteRequest()
+				response, err := dispatcher.RequestVote(context.Background(), request)
+				c.So(response.VoteGranted, ShouldBeFalse)
+				c.So(err, ShouldBeNil)
+				cancel()
+			}()
+
+			role := &LeaderRole{dispatcher: dispatcher}
+			role.RunRole(ctx, state)
+		})
+	})
+
+	Convey("Replica should respond on appendEntries", t, func(c C) {
+		Convey("Given stale Term it should reject", func() {
+			state := newState(1, time.Millisecond*10)
+			state.currentTerm = 10
+			dispatcher := newDispatcher()
+			ctx, cancel := context.WithCancel(context.Background())
+
+			go func() {
+				time.Sleep(2 * time.Millisecond)
+				peerState := newState(2, time.Millisecond*10)
+				peerState.currentTerm = state.currentTerm - 1
+				peerState.log.Append(1, []byte("cmd1"))
+				request := peerState.appendEntriesRequestBuilder()(peerState.log, 1)
+				response, err := dispatcher.AppendEntries(context.Background(), request)
+				c.So(response.Term, ShouldBeGreaterThan, peerState.currentTerm)
+				c.So(response.Success, ShouldBeFalse)
+				c.So(err, ShouldBeNil)
+				cancel()
+			}()
+
+			role := &LeaderRole{dispatcher: dispatcher}
+			role.RunRole(ctx, state)
+		})
+
+		Convey("Given newer Term it should become Follower", func() {
+			state := newState(1, time.Millisecond*10)
+			state.currentTerm = 10
+			dispatcher := newDispatcher()
+			ctx, cancel := context.WithCancel(context.Background())
+
+			go func() {
+				time.Sleep(2 * time.Millisecond)
+				peerState := newState(2, time.Millisecond*10)
+				peerState.currentTerm = state.currentTerm + 1
+				peerState.log.Append(1, []byte("cmd1"))
+				request := peerState.appendEntriesRequestBuilder()(peerState.log, 1)
+				response, err := dispatcher.AppendEntries(context.Background(), request)
+				c.So(response.Term, ShouldEqual, peerState.currentTerm)
+				c.So(err, ShouldBeNil)
+				cancel()
+			}()
+
+			role := &LeaderRole{dispatcher: dispatcher}
+			rh, _ := role.RunRole(ctx, state)
+			c.So(rh, ShouldEqual, FollowerRoleHandle)
+		})
+	})
+
+	Convey("Replica should respond on executeCommand", t, func(c C) {
+		state := newState(1, time.Millisecond*10)
+		dispatcher := newDispatcher()
+		ctx, cancel := context.WithCancel(context.Background())
+		go func() {
+			time.Sleep(2 * time.Millisecond)
+			request := &pb.ExecuteCommandRequest{[]byte("Command1")}
+			response, err := dispatcher.ExecuteCommand(context.Background(), request)
+			c.So(response, ShouldBeNil)
+			c.So(err, ShouldNotBeNil)
+			cancel()
+		}()
+
+		role := &LeaderRole{dispatcher: dispatcher}
+		role.RunRole(ctx, state)
+	})
+}

@@ -100,7 +100,7 @@ func (s *State) appendEntriesRequestBuilder() func(LogReader, int64) *pb.AppendE
 }
 
 // returns AppendEntriesResponse, true if request is accepted otherwise false
-func (s *State) appendEntriesReesponse(request *pb.AppendEntriesRequest) (*pb.AppendEntriesResponse, bool) {
+func (s *State) appendEntriesResponse(request *pb.AppendEntriesRequest) (*pb.AppendEntriesResponse, bool) {
 	response := &pb.AppendEntriesResponse{}
 	if request.Term < s.currentTerm {
 		response.Term = s.currentTerm

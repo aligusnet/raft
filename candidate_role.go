@@ -39,7 +39,7 @@ func (r *CandidateRole) RunRole(ctx context.Context, state *State) (RoleHandle, 
 			}
 			requestVote.send(response)
 		case appendEntries := <-r.dispatcher.appendEntriesCh:
-			response, accepted := state.appendEntriesReesponse(appendEntries.in)
+			response, accepted := state.appendEntriesResponse(appendEntries.in)
 			appendEntries.send(response)
 			if accepted {
 				return FollowerRoleHandle, state

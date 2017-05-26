@@ -18,7 +18,7 @@ func (r *FollowerRole) RunRole(ctx context.Context, state *State) (RoleHandle, *
 			response := state.requestVoteResponse(requestVote.in)
 			requestVote.send(response)
 		case appendEntries := <-r.dispatcher.appendEntriesCh:
-			response, _ := state.appendEntriesReesponse(appendEntries.in)
+			response, _ := state.appendEntriesResponse(appendEntries.in)
 			appendEntries.send(response)
 		case executeCommand := <-r.dispatcher.executeCommandCh:
 			executeCommand.sendError(fmt.Errorf("Not yest implemented"))
