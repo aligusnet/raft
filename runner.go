@@ -24,7 +24,10 @@ func Run(ctx context.Context, id int64, timeout time.Duration, endPointAddresses
 		}
 	}
 
-	server.roles[LeaderRoleHandle] = &LeaderRole{dispatcher: server.dispatcher}
+	server.roles[LeaderRoleHandle] = &LeaderRole{
+		dispatcher: server.dispatcher,
+		replicas:   replicas,
+	}
 	server.roles[FollowerRoleHandle] = &FollowerRole{dispatcher: server.dispatcher}
 	server.roles[CandidateRoleHandle] = &CandidateRole{
 		dispatcher: server.dispatcher,

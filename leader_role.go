@@ -8,7 +8,17 @@ import (
 
 type LeaderRole struct {
 	dispatcher *Dispatcher
+	replicas   map[int64]*Replica
 }
+
+func newLeaderRole(dispatcher *Dispatcher) *LeaderRole {
+	return &LeaderRole{
+		dispatcher: dispatcher,
+		replicas:   make(map[int64]*Replica),
+	}
+}
+
+const heartbeatTimeoutKey int = 174
 
 func (r *LeaderRole) RunRole(ctx context.Context, state *State) (RoleHandle, *State) {
 	for {

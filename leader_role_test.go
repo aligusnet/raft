@@ -13,7 +13,7 @@ func TestLeaderRole(t *testing.T) {
 		state := newState(1, time.Millisecond*10)
 
 		ctx, cancel := context.WithCancel(context.Background())
-		role := &LeaderRole{dispatcher: newDispatcher()}
+		role := newLeaderRole(newDispatcher())
 		go func() {
 			time.Sleep(2 * time.Millisecond)
 			cancel()
@@ -39,7 +39,7 @@ func TestLeaderRole(t *testing.T) {
 				c.So(response.VoteGranted, ShouldBeTrue)
 			}()
 
-			role := &LeaderRole{dispatcher: dispatcher}
+			role := newLeaderRole(dispatcher)
 			role.RunRole(context.Background(), state)
 		})
 
@@ -61,7 +61,7 @@ func TestLeaderRole(t *testing.T) {
 				cancel()
 			}()
 
-			role := &LeaderRole{dispatcher: dispatcher}
+			role := newLeaderRole(dispatcher)
 			role.RunRole(ctx, state)
 		})
 	})
@@ -86,7 +86,7 @@ func TestLeaderRole(t *testing.T) {
 				cancel()
 			}()
 
-			role := &LeaderRole{dispatcher: dispatcher}
+			role := newLeaderRole(dispatcher)
 			role.RunRole(ctx, state)
 		})
 
@@ -108,7 +108,7 @@ func TestLeaderRole(t *testing.T) {
 				cancel()
 			}()
 
-			role := &LeaderRole{dispatcher: dispatcher}
+			role := newLeaderRole(dispatcher)
 			rh, _ := role.RunRole(ctx, state)
 			c.So(rh, ShouldEqual, FollowerRoleHandle)
 		})
@@ -127,7 +127,7 @@ func TestLeaderRole(t *testing.T) {
 			cancel()
 		}()
 
-		role := &LeaderRole{dispatcher: dispatcher}
+		role := newLeaderRole(dispatcher)
 		role.RunRole(ctx, state)
 	})
 }
