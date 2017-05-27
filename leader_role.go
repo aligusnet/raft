@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	pb "github.com/alexander-ignatyev/raft/raft"
+	"time"
 )
 
 type LeaderRole struct {
@@ -21,6 +22,15 @@ func newLeaderRole(dispatcher *Dispatcher) *LeaderRole {
 const heartbeatTimeoutKey int = 174
 
 func (r *LeaderRole) RunRole(ctx context.Context, state *State) (RoleHandle, *State) {
+	timeout := generateHeartbeetTimeout(state.timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	ctx = context.WithValue(ctx, heartbeatTimeoutKey, timeout)
+	defer cancel()
+	appendEntriesBuilder := state.appendEntriesRequestBuilder()
+	for _, peer := range r.replicas {
+		peer.nextIndex = state.log.Size()
+		go peerThread(ctx, peer, appendEntriesBuilder)
+	}
 	for {
 		select {
 		case requestVote := <-r.dispatcher.requestVoteCh:
@@ -64,4 +74,23 @@ func (r *LeaderRole) appendEntriesResponse(state *State, in *pb.AppendEntriesReq
 	} else {
 		return state.appendEntriesResponse(in)
 	}
+}
+
+func peerThread(ctx context.Context, peer *Replica, builder func(LogReader, int64) *pb.AppendEntriesRequest) {
+	timeout := ctx.Value(heartbeatTimeoutKey).(time.Duration)
+	fakeLog := NewLog()
+	for {
+		select {
+		case <-time.After(timeout):
+			request := builder(fakeLog, peer.nextIndex)
+			peer.client.AppendEntries(ctx, request)
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func generateHeartbeetTimeout(timeout time.Duration) time.Duration {
+	ns := timeout.Nanoseconds()*5 / 10
+	return time.Nanosecond * time.Duration(ns)
 }

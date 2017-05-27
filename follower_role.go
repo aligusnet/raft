@@ -3,6 +3,7 @@ package raft
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 type FollowerRole struct {
@@ -10,8 +11,6 @@ type FollowerRole struct {
 }
 
 func (r *FollowerRole) RunRole(ctx context.Context, state *State) (RoleHandle, *State) {
-	ctx, _ = context.WithTimeout(ctx, state.timeout)
-
 	for {
 		select {
 		case requestVote := <-r.dispatcher.requestVoteCh:
@@ -22,14 +21,10 @@ func (r *FollowerRole) RunRole(ctx context.Context, state *State) (RoleHandle, *
 			appendEntries.send(response)
 		case executeCommand := <-r.dispatcher.executeCommandCh:
 			executeCommand.sendError(fmt.Errorf("Not yest implemented"))
+		case <- time.After(state.timeout):
+			return CandidateRoleHandle, state // timeout
 		case <-ctx.Done():
-			if ctx.Err() == context.DeadlineExceeded {
-				return CandidateRoleHandle, state // timeout
-			} else if ctx.Err() == context.Canceled {
-				return ExitRoleHandle, state
-			} else {
-				panic(fmt.Sprintf("Unexpected Context.Err: %v", ctx.Err()))
-			}
+			return ExitRoleHandle, state
 		}
 	}
 }
