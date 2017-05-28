@@ -226,5 +226,15 @@ func TestState_AppendEntries(t *testing.T) {
 			So(state.log.Get(3).Command, ShouldResemble, []byte("cmd11"))
 			So(state.log.Get(4).Command, ShouldResemble, []byte("cmd12"))
 		})
+		Convey("we should correctly process appendEntries with negative lastLogIndex", func () {
+			peerState.log.EraseAfter(-1)
+			peerState.currentTerm = state.currentTerm
+			request := peerState.appendEntriesRequestBuilder()(peerState.log, 0)
+			response, accepted := state.appendEntriesResponse(request)
+			So(accepted, ShouldBeTrue)
+			So(response.Term, ShouldEqual, state.currentTerm)
+			So(response.Success, ShouldBeTrue)
+			So(state.log.Size(), ShouldEqual, 0)
+		})
 	})
 }
