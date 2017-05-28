@@ -10,7 +10,7 @@ import (
 
 func TestCandidateRole(t *testing.T) {
 	Convey("Replica should be elected given at least half of votes", t, func() {
-		state := newState(1, time.Millisecond*10)
+		state := newState(1, time.Millisecond*30, NewLog())
 		state.votedFor = state.id
 		role := newCandidateRole(newDispatcher())
 		for i := int64(0); i < 4; i++ {
@@ -23,7 +23,7 @@ func TestCandidateRole(t *testing.T) {
 	})
 
 	Convey("Replica should respond on requestVote", t, func(c C) {
-		state := newState(1, time.Millisecond*10)
+		state := newState(1, time.Millisecond*10, NewLog())
 		dispatcher := newDispatcher()
 		role := newCandidateRole(dispatcher)
 		for i := int64(0); i < 4; i++ {
@@ -33,7 +33,7 @@ func TestCandidateRole(t *testing.T) {
 
 		go func() {
 			time.Sleep(2 * time.Millisecond)
-			peerState := newState(2, time.Millisecond*10)
+			peerState := newState(2, time.Millisecond*10, NewLog())
 			peerState.currentTerm = state.currentTerm + 1
 			peerState.log.Append(1, []byte("cmd1"))
 			request := peerState.requestVoteRequest()
@@ -47,7 +47,7 @@ func TestCandidateRole(t *testing.T) {
 	})
 
 	Convey("Replica should respond on appendEntries", t, func(c C) {
-		state := newState(1, time.Millisecond*10)
+		state := newState(1, time.Millisecond*30, NewLog())
 		dispatcher := newDispatcher()
 		role := newCandidateRole(dispatcher)
 		for i := int64(0); i < 4; i++ {
@@ -57,7 +57,7 @@ func TestCandidateRole(t *testing.T) {
 
 		go func() {
 			time.Sleep(2 * time.Millisecond)
-			peerState := newState(2, time.Millisecond*10)
+			peerState := newState(2, time.Millisecond*10, NewLog())
 			peerState.currentTerm = state.currentTerm + 1
 			peerState.log.Append(1, []byte("cmd1"))
 			request := peerState.appendEntriesRequestBuilder()(peerState.log, 1)
@@ -71,7 +71,7 @@ func TestCandidateRole(t *testing.T) {
 	})
 
 	Convey("Replica should respond on executeCommand", t, func(c C) {
-		state := newState(1, time.Millisecond*10)
+		state := newState(1, time.Millisecond*10, NewLog())
 		state.currentLeaderId = 2
 		state.addresses[2] = "address"
 		dispatcher := newDispatcher()
@@ -93,7 +93,7 @@ func TestCandidateRole(t *testing.T) {
 	})
 
 	Convey("Replica should not be elected given less than half of votes", t, func() {
-		state := newState(1, time.Millisecond*10)
+		state := newState(1, time.Millisecond*10, NewLog())
 		role := newCandidateRole(newDispatcher())
 		for i := int64(0); i < 4; i++ {
 			client := newRequestVoteClient(i == 0)
@@ -105,7 +105,7 @@ func TestCandidateRole(t *testing.T) {
 	})
 
 	Convey("Replica should not be elected given deadline passes", t, func() {
-		state := newState(1, time.Millisecond)
+		state := newState(1, time.Millisecond, NewLog())
 		role := newCandidateRole(newDispatcher())
 		for i := int64(0); i < 4; i++ {
 			client := newRequestVoteClient(true)
@@ -117,7 +117,7 @@ func TestCandidateRole(t *testing.T) {
 	})
 
 	Convey("Replica should not be elected given cancelation", t, func() {
-		state := newState(1, time.Millisecond*10)
+		state := newState(1, time.Millisecond*10, NewLog())
 		role := newCandidateRole(newDispatcher())
 		for i := int64(0); i < 4; i++ {
 			client := newRequestVoteClient(true)

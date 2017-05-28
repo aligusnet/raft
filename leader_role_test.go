@@ -10,7 +10,7 @@ import (
 
 func TestLeaderRole(t *testing.T) {
 	Convey("Replica should exit given cancelation", t, func() {
-		state := newState(1, time.Millisecond*10)
+		state := newState(1, time.Millisecond*10, NewLog())
 
 		ctx, cancel := context.WithCancel(context.Background())
 		role := newLeaderRole(newDispatcher())
@@ -24,13 +24,13 @@ func TestLeaderRole(t *testing.T) {
 
 	Convey("Replica should respond on requestVote", t, func(c C) {
 		Convey("giving Term > currentTerm it should grant vote", func() {
-			state := newState(1, time.Millisecond*10)
+			state := newState(1, time.Millisecond*10, NewLog())
 			state.currentTerm = 10
 			dispatcher := newDispatcher()
 
 			go func() {
 				time.Sleep(2 * time.Millisecond)
-				peerState := newState(2, time.Millisecond*10)
+				peerState := newState(2, time.Millisecond*10, NewLog())
 				peerState.currentTerm = state.currentTerm + 1
 				peerState.log.Append(1, []byte("cmd1"))
 				request := peerState.requestVoteRequest()
@@ -44,14 +44,14 @@ func TestLeaderRole(t *testing.T) {
 		})
 
 		Convey(" giving Term <= currentTerm it should reject", func() {
-			state := newState(1, time.Millisecond*10)
+			state := newState(1, time.Millisecond*10, NewLog())
 			state.currentTerm = 10
 			dispatcher := newDispatcher()
 			ctx, cancel := context.WithCancel(context.Background())
 
 			go func() {
 				time.Sleep(2 * time.Millisecond)
-				peerState := newState(2, time.Millisecond*10)
+				peerState := newState(2, time.Millisecond*10, NewLog())
 				peerState.currentTerm = state.currentTerm - 1
 				peerState.log.Append(1, []byte("cmd1"))
 				request := peerState.requestVoteRequest()
@@ -68,14 +68,14 @@ func TestLeaderRole(t *testing.T) {
 
 	Convey("Replica should respond on appendEntries", t, func(c C) {
 		Convey("Given stale Term it should reject", func() {
-			state := newState(1, time.Millisecond*10)
+			state := newState(1, time.Millisecond*10, NewLog())
 			state.currentTerm = 10
 			dispatcher := newDispatcher()
 			ctx, cancel := context.WithCancel(context.Background())
 
 			go func() {
 				time.Sleep(2 * time.Millisecond)
-				peerState := newState(2, time.Millisecond*10)
+				peerState := newState(2, time.Millisecond*10, NewLog())
 				peerState.currentTerm = state.currentTerm - 1
 				peerState.log.Append(1, []byte("cmd1"))
 				request := peerState.appendEntriesRequestBuilder()(peerState.log, 1)
@@ -91,14 +91,14 @@ func TestLeaderRole(t *testing.T) {
 		})
 
 		Convey("Given newer Term it should become Follower", func() {
-			state := newState(1, time.Millisecond*10)
+			state := newState(1, time.Millisecond*10, NewLog())
 			state.currentTerm = 10
 			dispatcher := newDispatcher()
 			ctx, cancel := context.WithCancel(context.Background())
 
 			go func() {
 				time.Sleep(2 * time.Millisecond)
-				peerState := newState(2, time.Millisecond*10)
+				peerState := newState(2, time.Millisecond*10, NewLog())
 				peerState.currentTerm = state.currentTerm + 1
 				peerState.log.Append(1, []byte("cmd1"))
 				request := peerState.appendEntriesRequestBuilder()(peerState.log, 1)
@@ -115,7 +115,7 @@ func TestLeaderRole(t *testing.T) {
 	})
 
 	Convey("Replica should respond on executeCommand", t, func(c C) {
-		state := newState(1, time.Millisecond*10)
+		state := newState(1, time.Millisecond*10, NewLog())
 		dispatcher := newDispatcher()
 		ctx, cancel := context.WithCancel(context.Background())
 		go func() {

@@ -10,12 +10,12 @@ import (
 
 func TestFollowerRole(t *testing.T) {
 	Convey("Replica should respond on requestVote", t, func(c C) {
-		state := newState(1, time.Millisecond*10)
+		state := newState(1, time.Millisecond*10, NewLog())
 		dispatcher := newDispatcher()
 
 		go func() {
 			time.Sleep(2 * time.Millisecond)
-			peerState := newState(2, time.Millisecond*10)
+			peerState := newState(2, time.Millisecond*10, NewLog())
 			peerState.currentTerm = state.currentTerm + 1
 			peerState.log.Append(1, []byte("cmd1"))
 			request := peerState.requestVoteRequest()
@@ -30,13 +30,13 @@ func TestFollowerRole(t *testing.T) {
 	})
 
 	Convey("Replica should respond on appendEntries", t, func(c C) {
-		state := newState(1, time.Millisecond*10)
+		state := newState(1, time.Millisecond*10, NewLog())
 		dispatcher := newDispatcher()
 		ctx, cancel := context.WithCancel(context.Background())
 
 		go func() {
 			time.Sleep(2 * time.Millisecond)
-			peerState := newState(2, time.Millisecond*10)
+			peerState := newState(2, time.Millisecond*10, NewLog())
 			peerState.currentTerm = state.currentTerm + 1
 			peerState.log.Append(1, []byte("cmd1"))
 			request := peerState.appendEntriesRequestBuilder()(peerState.log, 1)
@@ -52,7 +52,7 @@ func TestFollowerRole(t *testing.T) {
 	})
 
 	Convey("Replica should respond on executeCommand", t, func(c C) {
-		state := newState(1, time.Millisecond*10)
+		state := newState(1, time.Millisecond*10, NewLog())
 		dispatcher := newDispatcher()
 		state.currentLeaderId = 2
 		state.addresses[2] = "address737"
@@ -70,7 +70,7 @@ func TestFollowerRole(t *testing.T) {
 	})
 
 	Convey("Replica should become Candidate given deadline passes", t, func() {
-		state := newState(1, time.Millisecond)
+		state := newState(1, time.Millisecond, NewLog())
 
 		role := &FollowerRole{dispatcher: newDispatcher()}
 		rh, _ := role.RunRole(context.Background(), state)
@@ -78,7 +78,7 @@ func TestFollowerRole(t *testing.T) {
 	})
 
 	Convey("Replica should exit given cancelation", t, func() {
-		state := newState(1, time.Millisecond*10)
+		state := newState(1, time.Millisecond*10, NewLog())
 
 		ctx, cancel := context.WithCancel(context.Background())
 		role := &FollowerRole{dispatcher: newDispatcher()}

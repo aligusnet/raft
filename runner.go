@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func Run(ctx context.Context, id int64, timeout time.Duration, endPointAddresses map[int64]string) {
+func Run(ctx context.Context, id int64, timeout time.Duration, log Log, endPointAddresses map[int64]string) {
 	server := newServer(ctx)
 	lis, err := net.Listen("tcp", endPointAddresses[id])
 	if err != nil {
@@ -34,7 +34,9 @@ func Run(ctx context.Context, id int64, timeout time.Duration, endPointAddresses
 		replicas:   replicas,
 	}
 
-	go server.run(FollowerRoleHandle, newState(id, timeout))
+	state := newState(id, timeout, log)
+	state.addresses = endPointAddresses
+	go server.run(FollowerRoleHandle, state)
 
 	gs := grpc.NewServer()
 	pb.RegisterRaftServer(gs, server.dispatcher)

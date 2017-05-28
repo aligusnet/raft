@@ -17,11 +17,11 @@ type State struct {
 	addresses       map[int64]string
 }
 
-func newState(id int64, timeout time.Duration) *State {
+func newState(id int64, timeout time.Duration, log Log) *State {
 	return &State{
 		id:              id,
 		timeout:         timeout,
-		log:             NewLog(),
+		log:             log,
 		votedFor:        id,
 		currentLeaderId: -1,
 		addresses:       make(map[int64]string),
