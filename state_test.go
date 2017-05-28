@@ -32,6 +32,26 @@ func TestState(t *testing.T) {
 	})
 }
 
+func TestState_LeaderAddress(t *testing.T) {
+	Convey("No leader", t, func() {
+		state := newState(1, time.Millisecond*10)
+		So(state.leaderAddress(), ShouldBeEmpty)
+	})
+
+	Convey("No leader's address", t, func() {
+		state := newState(1, time.Millisecond*10)
+		state.currentLeaderId = 2
+		So(state.leaderAddress(), ShouldBeEmpty)
+	})
+
+	Convey("We have leader and its address", t, func() {
+		state := newState(1, time.Millisecond*10)
+		state.currentLeaderId = 2
+		state.addresses[2] = "address898"
+		So(state.leaderAddress(), ShouldEqual, "address898")
+	})
+}
+
 func TestState_RequestVote(t *testing.T) {
 	Convey("Given initialized non-voted state", t, func() {
 		state := newState(1, time.Millisecond*10)
@@ -226,7 +246,7 @@ func TestState_AppendEntries(t *testing.T) {
 			So(state.log.Get(3).Command, ShouldResemble, []byte("cmd11"))
 			So(state.log.Get(4).Command, ShouldResemble, []byte("cmd12"))
 		})
-		Convey("we should correctly process appendEntries with negative lastLogIndex", func () {
+		Convey("we should correctly process appendEntries with negative lastLogIndex", func() {
 			peerState.log.EraseAfter(-1)
 			peerState.currentTerm = state.currentTerm
 			request := peerState.appendEntriesRequestBuilder()(peerState.log, 0)

@@ -6,21 +6,25 @@ import (
 )
 
 type State struct {
-	id          int64
-	currentTerm int64
-	votedFor    int64
-	commitIndex int64
-	lastApplied int64
-	timeout     time.Duration
-	log         Log
+	id              int64
+	currentTerm     int64
+	votedFor        int64
+	commitIndex     int64
+	lastApplied     int64
+	currentLeaderId int64
+	timeout         time.Duration
+	log             Log
+	addresses       map[int64]string
 }
 
 func newState(id int64, timeout time.Duration) *State {
 	return &State{
-		id:       id,
-		timeout:  timeout,
-		log:      NewLog(),
-		votedFor: id,
+		id:              id,
+		timeout:         timeout,
+		log:             NewLog(),
+		votedFor:        id,
+		currentLeaderId: -1,
+		addresses:       make(map[int64]string),
 	}
 }
 
@@ -32,6 +36,15 @@ func (s *State) setTerm(term int64) {
 	}
 	s.currentTerm = term
 
+}
+
+// Get address of current leader.
+// Returns empty string if leader's address is unkwnown
+func (s *State) leaderAddress() string {
+	if address, ok := s.addresses[s.currentLeaderId]; ok {
+		return address
+	}
+	return ""
 }
 
 func (s *State) lastLogIndexAndTerm() (int64, int64) {
@@ -119,6 +132,7 @@ func (s *State) appendEntriesResponse(request *pb.AppendEntriesRequest) (*pb.App
 		response.Success = false
 		return response, false
 	} else {
+		s.currentLeaderId = request.LeaderId
 		lastLogIndex := s.log.Size() - 1
 		s.currentTerm = request.Term
 		response.Term = s.currentTerm

@@ -32,6 +32,7 @@ func TestFollowerRole(t *testing.T) {
 	Convey("Replica should respond on appendEntries", t, func(c C) {
 		state := newState(1, time.Millisecond*10)
 		dispatcher := newDispatcher()
+		ctx, cancel := context.WithCancel(context.Background())
 
 		go func() {
 			time.Sleep(2 * time.Millisecond)
@@ -42,21 +43,26 @@ func TestFollowerRole(t *testing.T) {
 			response, err := dispatcher.AppendEntries(context.Background(), request)
 			c.So(response, ShouldNotBeNil)
 			c.So(err, ShouldBeNil)
+			cancel()
 		}()
 
 		role := &FollowerRole{dispatcher: dispatcher}
-		role.RunRole(context.Background(), state)
+		role.RunRole(ctx, state)
+		c.So(state.currentLeaderId, ShouldEqual, 2)
 	})
 
 	Convey("Replica should respond on executeCommand", t, func(c C) {
 		state := newState(1, time.Millisecond*10)
 		dispatcher := newDispatcher()
+		state.currentLeaderId = 2
+		state.addresses[2] = "address737"
 		go func() {
 			time.Sleep(2 * time.Millisecond)
 			request := &pb.ExecuteCommandRequest{[]byte("Command1")}
 			response, err := dispatcher.ExecuteCommand(context.Background(), request)
-			c.So(response, ShouldBeNil)
-			c.So(err, ShouldNotBeNil)
+			c.So(response.Success, ShouldBeFalse)
+			c.So(response.ServerAddress, ShouldEqual, "address737")
+			c.So(err, ShouldBeNil)
 		}()
 
 		role := &FollowerRole{dispatcher: dispatcher}

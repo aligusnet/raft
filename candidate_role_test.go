@@ -11,6 +11,7 @@ import (
 func TestCandidateRole(t *testing.T) {
 	Convey("Replica should be elected given at least half of votes", t, func() {
 		state := newState(1, time.Millisecond*10)
+		state.votedFor = state.id
 		role := newCandidateRole(newDispatcher())
 		for i := int64(0); i < 4; i++ {
 			client := newRequestVoteClient(i%2 == 0)
@@ -71,6 +72,8 @@ func TestCandidateRole(t *testing.T) {
 
 	Convey("Replica should respond on executeCommand", t, func(c C) {
 		state := newState(1, time.Millisecond*10)
+		state.currentLeaderId = 2
+		state.addresses[2] = "address"
 		dispatcher := newDispatcher()
 		role := newCandidateRole(dispatcher)
 		for i := int64(0); i < 4; i++ {
