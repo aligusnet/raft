@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/golang/glog"
 	"os/exec"
+	"time"
 )
 
 type ProcessInfo struct {
@@ -14,15 +15,28 @@ type ProcessInfo struct {
 	cmd      *exec.Cmd
 }
 
+func newClientInfo(instance int64) *ProcessInfo {
+	logDirArg := fmt.Sprintf("--log_dir=logs/client%v", instance)
+	return &ProcessInfo{progname: "./client/client",
+		args: []string{
+			logDirArg,
+			"-alsologtostderr=true",
+			"--v=10",
+		},
+	}
+}
+
 func newServerInfo(instance int64) *ProcessInfo {
 	instanceArg := fmt.Sprintf("--instance=%v", instance)
-	logDirArg := fmt.Sprintf("--log_dir=/Users/ai/go/src/github.com/alexander-ignatyev/raft/test/logs/server%v", instance)
+	logDirArg := fmt.Sprintf("--log_dir=logs/server%v", instance)
 	return &ProcessInfo{instance: instance,
 		progname: "./server/server",
-		args: []string{instanceArg,
+		args: []string{
+			instanceArg,
 			logDirArg,
-			"--v=10"}}
-
+			"--v=10",
+		},
+	}
 }
 
 func (p *ProcessInfo) Start() {
@@ -54,6 +68,7 @@ func (p *ProcessInfo) Stop() {
 
 func main() {
 	flag.Parse()
+	clients := make([]*ProcessInfo, 1)
 	servers := make([]*ProcessInfo, 5)
 
 	for i := int64(0); i < 5; i++ {
@@ -61,6 +76,24 @@ func main() {
 		servers[i] = newServerInfo(i)
 		servers[i].Start()
 	}
+
+	defer func() {
+		for _, p := range servers {
+			glog.Infof("stopping server # %v", p.instance)
+			p.Stop()
+		}
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+	glog.Info("staring client")
+	clients[0] = newClientInfo(0)
+
+	output := clients[0].CombinedOutput()
+
+	fmt.Printf("%s\n", output)
+
+	glog.Info("waiting for client termination")
+	clients[0].cmd.Wait()
 
 	servers[0].cmd.Wait()
 }

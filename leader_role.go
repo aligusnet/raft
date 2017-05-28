@@ -1,7 +1,6 @@
 package raft
 
 import (
-	"fmt"
 	pb "github.com/alexander-ignatyev/raft/raft"
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
@@ -47,7 +46,8 @@ func (r *LeaderRole) RunRole(ctx context.Context, state *State) (RoleHandle, *St
 				return FollowerRoleHandle, state
 			}
 		case executeCommand := <-r.dispatcher.executeCommandCh:
-			executeCommand.sendError(fmt.Errorf("Not yest implemented"))
+			response := &pb.ExecuteCommandResponse{Success: true}
+			executeCommand.send(response)
 		case <-ctx.Done():
 			return ExitRoleHandle, state
 		}

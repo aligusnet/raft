@@ -6,4 +6,5 @@
 *.FATAL
 
 test/test
+test/client/client
 test/server/server

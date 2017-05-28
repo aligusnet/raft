@@ -122,8 +122,8 @@ func TestLeaderRole(t *testing.T) {
 			time.Sleep(2 * time.Millisecond)
 			request := &pb.ExecuteCommandRequest{[]byte("Command1")}
 			response, err := dispatcher.ExecuteCommand(context.Background(), request)
-			c.So(response, ShouldBeNil)
-			c.So(err, ShouldNotBeNil)
+			c.So(response.Success, ShouldBeTrue)
+			c.So(err, ShouldBeNil)
 			cancel()
 		}()
 
