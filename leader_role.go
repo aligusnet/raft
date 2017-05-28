@@ -1,9 +1,10 @@
 package raft
 
 import (
-	"context"
 	"fmt"
 	pb "github.com/alexander-ignatyev/raft/raft"
+	"github.com/golang/glog"
+	"golang.org/x/net/context"
 	"time"
 )
 
@@ -23,7 +24,7 @@ const heartbeatTimeoutKey int = 174
 
 func (r *LeaderRole) RunRole(ctx context.Context, state *State) (RoleHandle, *State) {
 	timeout := generateHeartbeetTimeout(state.timeout)
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+	ctx, cancel := context.WithCancel(ctx)
 	ctx = context.WithValue(ctx, heartbeatTimeoutKey, timeout)
 	defer cancel()
 	appendEntriesBuilder := state.appendEntriesRequestBuilder()
@@ -77,20 +78,30 @@ func (r *LeaderRole) appendEntriesResponse(state *State, in *pb.AppendEntriesReq
 }
 
 func peerThread(ctx context.Context, peer *Replica, builder func(LogReader, int64) *pb.AppendEntriesRequest) {
-	timeout := ctx.Value(heartbeatTimeoutKey).(time.Duration)
 	fakeLog := NewLog()
+
+	request := builder(fakeLog, peer.nextIndex)
+	glog.Infof("[Leader] [peer thread: %v] sending initial AppendEntries (heartbeat): %v", peer.id, request)
+	peer.client.AppendEntries(ctx, request)
+
+	timeout := ctx.Value(heartbeatTimeoutKey).(time.Duration)
 	for {
 		select {
 		case <-time.After(timeout):
+			glog.Infof("[Leader] [peer thread: %v] sending AppendEntries (heartbeat): %v", peer.id, request)
 			request := builder(fakeLog, peer.nextIndex)
-			peer.client.AppendEntries(ctx, request)
+			_, err := peer.client.AppendEntries(ctx, request)
+			if err != nil {
+				glog.Warningf("[Leader] [peer thread: %v] failed to send AppendEntries to the peer: %v", peer.id, err)
+			}
 		case <-ctx.Done():
+			glog.Infof("[Leader] [peer thread: %v] exiting", peer.id)
 			return
 		}
 	}
 }
 
 func generateHeartbeetTimeout(timeout time.Duration) time.Duration {
-	ns := timeout.Nanoseconds()*5 / 10
+	ns := timeout.Nanoseconds() * 5 / 10
 	return time.Nanosecond * time.Duration(ns)
 }

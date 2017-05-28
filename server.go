@@ -1,8 +1,8 @@
 package raft
 
 import (
-	"context"
 	"github.com/golang/glog"
+	"golang.org/x/net/context"
 )
 
 type Server struct {
@@ -30,9 +30,9 @@ func (s *Server) getRole(handle RoleHandle) Role {
 }
 
 func (s *Server) run(handle RoleHandle, state *State) {
-	glog.Infof("Starting server")
 	for ; handle != ExitRoleHandle; handle, state = s.getRole(handle).RunRole(s.ctx, state) {
-		glog.Infof("Switching to new role: %v", handle)
+		glog.Flush()
+		glog.Warningf("Switching to new role: %v", handle)
 	}
 }
 

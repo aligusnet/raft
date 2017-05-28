@@ -24,6 +24,16 @@ func newState(id int64, timeout time.Duration) *State {
 	}
 }
 
+func (s *State) setTerm(term int64) {
+	if s.currentTerm < term {
+		s.votedFor = s.id
+	} else if s.currentTerm > term {
+		panic("We cannon go back in time")
+	}
+	s.currentTerm = term
+
+}
+
 func (s *State) lastLogIndexAndTerm() (int64, int64) {
 	index := s.log.Size() - 1
 	lastLogIndex := int64(-1)
@@ -47,10 +57,11 @@ func (s *State) requestVoteRequest() *pb.RequestVoteRequest {
 }
 
 func (s *State) requestVoteResponse(in *pb.RequestVoteRequest) *pb.RequestVoteResponse {
+	// TODO: revise logic of granting votes
 	response := &pb.RequestVoteResponse{Term: s.currentTerm}
 	lastLogIndex, lastLogTerm := s.lastLogIndexAndTerm()
-	if s.votedFor != s.id && s.currentTerm == in.Term {
-		// we shot not grant vote if we've voted at this term
+	if s.votedFor != s.id {
+		// we shot not grant vote if we've voted
 		response.VoteGranted = false
 	} else if in.Term < s.currentTerm {
 		// we don't vote for candidates with stale Term
@@ -88,6 +99,7 @@ func (s *State) appendEntriesRequestBuilder() func(LogReader, int64) *pb.AppendE
 			PrevLogIndex: prevLogIndex,
 			PrevLogTerm:  prevLogTerm,
 			CommitIndex:  commitIndex,
+			Entries:      make([]*pb.LogEntry, 0),
 		}
 
 		for i := peerNextLogIndex; i < log.Size(); i++ {
@@ -110,8 +122,13 @@ func (s *State) appendEntriesResponse(request *pb.AppendEntriesRequest) (*pb.App
 		lastLogIndex := s.log.Size() - 1
 		s.currentTerm = request.Term
 		response.Term = s.currentTerm
+
+		// TODO: revise logic of processing AppendEntries
 		response.Success = false
-		if lastLogIndex >= request.PrevLogIndex {
+		if request.PrevLogIndex < 0 {
+			response.Success = true
+			s.log.EraseAfter(request.PrevLogIndex)
+		} else if lastLogIndex >= request.PrevLogIndex {
 			prevLogTerm := s.log.Get(request.PrevLogIndex).Term
 			if prevLogTerm == request.PrevLogTerm {
 				response.Success = true

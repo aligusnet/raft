@@ -1,8 +1,8 @@
 package raft
 
 import (
-	"context"
 	. "github.com/smartystreets/goconvey/convey"
+	"golang.org/x/net/context"
 	"testing"
 )
 

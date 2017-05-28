@@ -1,15 +1,33 @@
 package raft
 
-import "context"
+import (
+	"fmt"
+	"golang.org/x/net/context"
+)
 
 type RoleHandle int
 
 const (
-	LeaderRoleHandle    RoleHandle = iota
-	FollowerRoleHandle  RoleHandle = iota
-	CandidateRoleHandle RoleHandle = iota
-	ExitRoleHandle      RoleHandle = iota
+	LeaderRoleHandle RoleHandle = 1 + iota
+	FollowerRoleHandle
+	CandidateRoleHandle
+	ExitRoleHandle
 )
+
+func (rh RoleHandle) String() string {
+	switch rh {
+	case LeaderRoleHandle:
+		return "Leader"
+	case FollowerRoleHandle:
+		return "Follower"
+	case CandidateRoleHandle:
+		return "Candidate"
+	case ExitRoleHandle:
+		return "ExitRole"
+	default:
+		return fmt.Sprintf("Role-%b", rh)
+	}
+}
 
 type Role interface {
 	RunRole(ctx context.Context, state *State) (RoleHandle, *State)

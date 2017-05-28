@@ -1,9 +1,10 @@
 package raft
 
 import (
-	"context"
 	"fmt"
 	pb "github.com/alexander-ignatyev/raft/raft"
+	"github.com/golang/glog"
+	"golang.org/x/net/context"
 	"math/rand"
 	"time"
 )
@@ -23,8 +24,7 @@ func newCandidateRole(dispatcher *Dispatcher) *CandidateRole {
 }
 
 func (r *CandidateRole) RunRole(ctx context.Context, state *State) (RoleHandle, *State) {
-	state.currentTerm++
-	state.votedFor = state.id
+	state.setTerm(state.currentTerm + 1)
 	timeout := generateTimeout(state.timeout)
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	ctx = context.WithValue(ctx, requestKey, state.requestVoteRequest())
@@ -77,6 +77,7 @@ func requestVote(ctx context.Context, peer *Replica, result chan bool) {
 	for {
 		resp, err := peer.client.RequestVote(ctx, request)
 		if err == nil {
+			glog.Infof("[Candidate] [peer thread: %v] got response: %v", peer.id, resp)
 			result <- resp.VoteGranted
 			return
 		}

@@ -31,4 +31,7 @@ func main() {
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*10)
 
 	raft.Run(ctx, int64(index), 200*time.Millisecond, endpoints)
+
+	glog.Info("Application is shutting down")
+	glog.Flush()
 }

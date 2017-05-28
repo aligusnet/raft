@@ -1,9 +1,9 @@
 package raft
 
 import (
-	"context"
 	pb "github.com/alexander-ignatyev/raft/raft"
 	"github.com/golang/glog"
+	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"net"
@@ -20,7 +20,7 @@ func Run(ctx context.Context, id int64, timeout time.Duration, endPointAddresses
 	replicas := make(map[int64]*Replica)
 	for replicaId, address := range endPointAddresses {
 		if replicaId != id {
-			replicas[replicaId] = newReplica(replicaId, address)
+			replicas[replicaId] = newReplica(ctx, replicaId, address)
 		}
 	}
 
@@ -55,17 +55,18 @@ func Run(ctx context.Context, id int64, timeout time.Duration, endPointAddresses
 			glog.Errorf("failed to serve: %v", err)
 		}
 	}
-	glog.Flush()
 }
 
-func newReplica(id int64, address string) *Replica {
-	r := &Replica{id, address, nil, 0, 0}
-	conn, err := grpc.Dial(address, grpc.WithInsecure())
+func newReplica(ctx context.Context, id int64, address string) *Replica {
+	conn, err := grpc.DialContext(ctx, address, grpc.WithInsecure())
 	if err != nil {
 		glog.Errorf("[Replica %v] failed to connect to %v", id, address)
 	} else {
 		glog.Infof("[Replica %v] connected to %v", id, address)
 	}
-	r.client = pb.NewRaftClient(conn)
-	return r
+	return &Replica{
+		id:      id,
+		address: address,
+		client:  pb.NewRaftClient(conn),
+	}
 }

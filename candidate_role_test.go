@@ -1,9 +1,9 @@
 package raft
 
 import (
-	"context"
 	pb "github.com/alexander-ignatyev/raft/raft"
 	. "github.com/smartystreets/goconvey/convey"
+	"golang.org/x/net/context"
 	"testing"
 	"time"
 )

@@ -1,8 +1,9 @@
 package raft
 
 import (
-	"context"
 	"fmt"
+	"github.com/golang/glog"
+	"golang.org/x/net/context"
 	"time"
 )
 
@@ -17,11 +18,13 @@ func (r *FollowerRole) RunRole(ctx context.Context, state *State) (RoleHandle, *
 			response := state.requestVoteResponse(requestVote.in)
 			requestVote.send(response)
 		case appendEntries := <-r.dispatcher.appendEntriesCh:
+			glog.Flush()
 			response, _ := state.appendEntriesResponse(appendEntries.in)
 			appendEntries.send(response)
 		case executeCommand := <-r.dispatcher.executeCommandCh:
 			executeCommand.sendError(fmt.Errorf("Not yest implemented"))
-		case <- time.After(state.timeout):
+		case <-time.After(state.timeout):
+			glog.Info("[Follower] election timeout")
 			return CandidateRoleHandle, state // timeout
 		case <-ctx.Done():
 			return ExitRoleHandle, state

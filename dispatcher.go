@@ -2,6 +2,7 @@ package raft
 
 import (
 	pb "github.com/alexander-ignatyev/raft/raft"
+	"github.com/golang/glog"
 	"golang.org/x/net/context"
 )
 
@@ -18,6 +19,7 @@ func newDispatcher() *Dispatcher {
 }
 
 func (d *Dispatcher) RequestVote(ctx context.Context, in *pb.RequestVoteRequest) (*pb.RequestVoteResponse, error) {
+	glog.Infof("got RequestVote: %v", in)
 	resultCh := make(chan struct {
 		*pb.RequestVoteResponse
 		error
@@ -25,10 +27,12 @@ func (d *Dispatcher) RequestVote(ctx context.Context, in *pb.RequestVoteRequest)
 	msg := &requestVoteMessage{ctx, in, resultCh}
 	d.requestVoteCh <- msg
 	result := <-resultCh
+	glog.Infof("sending response to RequestVote: %v, error: %v", result.RequestVoteResponse, result.error)
 	return result.RequestVoteResponse, result.error
 }
 
 func (d *Dispatcher) AppendEntries(ctx context.Context, in *pb.AppendEntriesRequest) (*pb.AppendEntriesResponse, error) {
+	glog.Infof("got AppendEntries: %v", in)
 	resultCh := make(chan struct {
 		*pb.AppendEntriesResponse
 		error
@@ -36,10 +40,12 @@ func (d *Dispatcher) AppendEntries(ctx context.Context, in *pb.AppendEntriesRequ
 	msg := &appendEntriesMessage{ctx, in, resultCh}
 	d.appendEntriesCh <- msg
 	result := <-resultCh
+	glog.Infof("sending response to AppendEntries: %v, error: %v", result.AppendEntriesResponse, result.error)
 	return result.AppendEntriesResponse, result.error
 }
 
 func (d *Dispatcher) ExecuteCommand(ctx context.Context, in *pb.ExecuteCommandRequest) (*pb.ExecuteCommandResponse, error) {
+	glog.Infof("got ExecuteCommand: %v", in)
 	resultCh := make(chan struct {
 		*pb.ExecuteCommandResponse
 		error
@@ -47,6 +53,7 @@ func (d *Dispatcher) ExecuteCommand(ctx context.Context, in *pb.ExecuteCommandRe
 	msg := &executeCommandMessage{ctx, in, resultCh}
 	d.executeCommandCh <- msg
 	result := <-resultCh
+	glog.Infof("sending response to ExecuteCommand: %v, error: %v", result.ExecuteCommandResponse, result.error)
 	return result.ExecuteCommandResponse, result.error
 }
 
