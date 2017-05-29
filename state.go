@@ -95,33 +95,26 @@ func (s *State) requestVoteResponse(in *pb.RequestVoteRequest) *pb.RequestVoteRe
 	return response
 }
 
-func (s *State) appendEntriesRequestBuilder() func(LogReader, int64) *pb.AppendEntriesRequest {
-	term := s.currentTerm
-	leaderId := s.id
-	commitIndex := s.commitIndex
-
-	builder := func(log LogReader, peerNextLogIndex int64) *pb.AppendEntriesRequest {
-		prevLogIndex := peerNextLogIndex - 1
-		prevLogTerm := int64(-1)
-		if prevLogIndex >= 0 {
-			prevLogTerm = s.log.Get(prevLogIndex).Term
-		}
-		request := &pb.AppendEntriesRequest{
-			Term:         term,
-			LeaderId:     leaderId,
-			PrevLogIndex: prevLogIndex,
-			PrevLogTerm:  prevLogTerm,
-			CommitIndex:  commitIndex,
-			Entries:      make([]*pb.LogEntry, 0),
-		}
-
-		for i := peerNextLogIndex; i < log.Size(); i++ {
-			request.Entries = append(request.Entries, log.Get(i))
-		}
-
-		return request
+func (s *State) appendEntriesRequest(peerNextLogIndex int64) *pb.AppendEntriesRequest {
+	prevLogIndex := peerNextLogIndex - 1
+	prevLogTerm := int64(-1)
+	if prevLogIndex >= 0 {
+		prevLogTerm = s.log.Get(prevLogIndex).Term
 	}
-	return builder
+	request := &pb.AppendEntriesRequest{
+		Term:         s.currentTerm,
+		LeaderId:     s.id,
+		PrevLogIndex: prevLogIndex,
+		PrevLogTerm:  prevLogTerm,
+		CommitIndex:  s.commitIndex,
+		Entries:      make([]*pb.LogEntry, 0),
+	}
+
+	for i := peerNextLogIndex; i < s.log.Size(); i++ {
+		request.Entries = append(request.Entries, s.log.Get(i))
+	}
+
+	return request
 }
 
 // returns AppendEntriesResponse, true if request is accepted otherwise false

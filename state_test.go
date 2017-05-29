@@ -168,10 +168,8 @@ func TestState_AppendEntries(t *testing.T) {
 		state.log.Append(8, []byte("cmd2"))
 		state.log.Append(9, []byte("cmd3"))
 
-		build := state.appendEntriesRequestBuilder()
-
 		Convey("we should create hearbeat message", func() {
-			request := build(state.log, 3)
+			request := state.appendEntriesRequest(3)
 			So(request.Term, ShouldEqual, state.currentTerm)
 			So(request.PrevLogIndex, ShouldEqual, 2)
 			So(request.PrevLogTerm, ShouldEqual, 9)
@@ -181,7 +179,7 @@ func TestState_AppendEntries(t *testing.T) {
 
 		Convey("we should create appendEntries request", func() {
 			Convey("for peers behind the leader", func() {
-				request := build(state.log, 1)
+				request := state.appendEntriesRequest(1)
 				So(request.Term, ShouldEqual, state.currentTerm)
 				So(request.PrevLogIndex, ShouldEqual, 0)
 				So(request.PrevLogTerm, ShouldEqual, 8)
@@ -190,7 +188,7 @@ func TestState_AppendEntries(t *testing.T) {
 			})
 
 			Convey("for peers with empty log", func() {
-				request := build(state.log, 0)
+				request := state.appendEntriesRequest(0)
 				So(request.Term, ShouldEqual, state.currentTerm)
 				So(request.PrevLogIndex, ShouldEqual, -1)
 				So(request.PrevLogTerm, ShouldEqual, -1)
@@ -206,7 +204,7 @@ func TestState_AppendEntries(t *testing.T) {
 
 		Convey("we should reject appendEntries with outdated Term", func() {
 			peerState.currentTerm = state.currentTerm - 1
-			request := peerState.appendEntriesRequestBuilder()(peerState.log, 1)
+			request := peerState.appendEntriesRequest(1)
 			response, accepted := state.appendEntriesResponse(request)
 			So(accepted, ShouldBeFalse)
 			So(response.Term, ShouldEqual, state.currentTerm)
@@ -214,7 +212,7 @@ func TestState_AppendEntries(t *testing.T) {
 		})
 		Convey("we should accept correct heartbeat", func() {
 			peerState.currentTerm = state.currentTerm
-			request := peerState.appendEntriesRequestBuilder()(peerState.log, 3)
+			request := peerState.appendEntriesRequest(3)
 			So(request.Entries, ShouldBeEmpty)
 			response, accepted := state.appendEntriesResponse(request)
 			So(accepted, ShouldBeTrue)
@@ -224,7 +222,7 @@ func TestState_AppendEntries(t *testing.T) {
 		Convey("we should request for missed entries", func() {
 			peerState.log.Append(9, []byte("cmd4"))
 			peerState.currentTerm = state.currentTerm
-			request := peerState.appendEntriesRequestBuilder()(peerState.log, 4)
+			request := peerState.appendEntriesRequest(4)
 			response, accepted := state.appendEntriesResponse(request)
 			So(accepted, ShouldBeTrue)
 			So(response.Term, ShouldEqual, state.currentTerm)
@@ -236,7 +234,7 @@ func TestState_AppendEntries(t *testing.T) {
 			peerState.log.Append(10, []byte("cmd11"))
 			peerState.log.Append(10, []byte("cmd12"))
 			peerState.currentTerm = state.currentTerm
-			request := peerState.appendEntriesRequestBuilder()(peerState.log, 2)
+			request := peerState.appendEntriesRequest(2)
 			response, accepted := state.appendEntriesResponse(request)
 			So(accepted, ShouldBeTrue)
 			So(response.Term, ShouldEqual, state.currentTerm)
@@ -249,7 +247,7 @@ func TestState_AppendEntries(t *testing.T) {
 		Convey("we should correctly process appendEntries with negative lastLogIndex", func() {
 			peerState.log.EraseAfter(-1)
 			peerState.currentTerm = state.currentTerm
-			request := peerState.appendEntriesRequestBuilder()(peerState.log, 0)
+			request := peerState.appendEntriesRequest(0)
 			response, accepted := state.appendEntriesResponse(request)
 			So(accepted, ShouldBeTrue)
 			So(response.Term, ShouldEqual, state.currentTerm)

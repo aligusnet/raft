@@ -26,10 +26,10 @@ func (r *LeaderRole) RunRole(ctx context.Context, state *State) (RoleHandle, *St
 	ctx, cancel := context.WithCancel(ctx)
 	ctx = context.WithValue(ctx, heartbeatTimeoutKey, timeout)
 	defer cancel()
-	appendEntriesBuilder := state.appendEntriesRequestBuilder()
+	request := state.appendEntriesRequest(state.log.Size())
 	for _, peer := range r.replicas {
 		peer.nextIndex = state.log.Size()
-		go peerThread(ctx, peer, appendEntriesBuilder)
+		go peerThread(ctx, peer, request)
 	}
 	for {
 		select {
@@ -66,8 +66,10 @@ func (r *LeaderRole) requestVoteResponse(state *State, in *pb.RequestVoteRequest
 }
 
 func (r *LeaderRole) appendEntriesResponse(state *State, in *pb.AppendEntriesRequest) (*pb.AppendEntriesResponse, bool) {
-	if in.Term <= state.currentTerm {
-		// TODO: something really wrong happened if in.Term == state.currentTerm
+	if in.Term == state.currentLeaderId {
+		glog.Fatalf("[Leader] got appendEntries from another leader with the same Term: %v", in)
+	}
+	if in.Term < state.currentTerm {
 		return &pb.AppendEntriesResponse{
 			Term:    state.currentTerm,
 			Success: false,
@@ -77,10 +79,9 @@ func (r *LeaderRole) appendEntriesResponse(state *State, in *pb.AppendEntriesReq
 	}
 }
 
-func peerThread(ctx context.Context, peer *Replica, builder func(LogReader, int64) *pb.AppendEntriesRequest) {
-	fakeLog := NewLog()
-
-	request := builder(fakeLog, peer.nextIndex)
+func peerThread(ctx context.Context, peer *Replica, r *pb.AppendEntriesRequest) {
+	request := new(pb.AppendEntriesRequest)
+	*request = *r
 	glog.Infof("[Leader] [peer thread: %v] sending initial AppendEntries (heartbeat): %v", peer.id, request)
 	peer.client.AppendEntries(ctx, request)
 
@@ -89,7 +90,6 @@ func peerThread(ctx context.Context, peer *Replica, builder func(LogReader, int6
 		select {
 		case <-time.After(timeout):
 			glog.Infof("[Leader] [peer thread: %v] sending AppendEntries (heartbeat): %v", peer.id, request)
-			request := builder(fakeLog, peer.nextIndex)
 			_, err := peer.client.AppendEntries(ctx, request)
 			if err != nil {
 				glog.Warningf("[Leader] [peer thread: %v] failed to send AppendEntries to the peer: %v", peer.id, err)

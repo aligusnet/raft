@@ -78,7 +78,7 @@ func TestLeaderRole(t *testing.T) {
 				peerState := newState(2, time.Millisecond*10, NewLog())
 				peerState.currentTerm = state.currentTerm - 1
 				peerState.log.Append(1, []byte("cmd1"))
-				request := peerState.appendEntriesRequestBuilder()(peerState.log, 1)
+				request := peerState.appendEntriesRequest(1)
 				response, err := dispatcher.AppendEntries(context.Background(), request)
 				c.So(response.Term, ShouldBeGreaterThan, peerState.currentTerm)
 				c.So(response.Success, ShouldBeFalse)
@@ -101,7 +101,7 @@ func TestLeaderRole(t *testing.T) {
 				peerState := newState(2, time.Millisecond*10, NewLog())
 				peerState.currentTerm = state.currentTerm + 1
 				peerState.log.Append(1, []byte("cmd1"))
-				request := peerState.appendEntriesRequestBuilder()(peerState.log, 1)
+				request := peerState.appendEntriesRequest(1)
 				response, err := dispatcher.AppendEntries(context.Background(), request)
 				c.So(response.Term, ShouldEqual, peerState.currentTerm)
 				c.So(err, ShouldBeNil)
