@@ -3,8 +3,10 @@ package raft
 import (
 	"fmt"
 	pb "github.com/alexander-ignatyev/raft/raft"
+	. "github.com/smartystreets/goconvey/convey"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"testing"
 	"time"
 )
 
@@ -16,6 +18,54 @@ type clientMock struct {
 	requestVoteIndex    int
 	appendEntriesIndex  int
 	executeCommandIndex int
+}
+
+func TestPeer_AppendEntriesResponse(t *testing.T) {
+	peer := &Replica{
+		nextIndex: 2,
+	}
+
+	state := &State{
+		currentTerm: 4,
+		log:         NewLog(),
+	}
+	state.log.Append(4, []byte("command1"))
+
+	Convey("Peer should correctly respond on AppendEntriesResponse", t, func() {
+		Convey("it should do nothing if the initial request succeeded", func() {
+			response := &pb.AppendEntriesResponse{
+				Term:    state.currentTerm,
+				Success: true,
+			}
+
+			request, demoted := peer.appendEntriesRequest(state, response)
+			So(request, ShouldBeNil)
+			So(demoted, ShouldBeFalse)
+		})
+
+		Convey("it should advise the leader to demote if Term > currentTerm", func() {
+			response := &pb.AppendEntriesResponse{
+				Term:    state.currentTerm + 1,
+				Success: false,
+			}
+
+			request, demoted := peer.appendEntriesRequest(state, response)
+			So(request, ShouldBeNil)
+			So(demoted, ShouldBeTrue)
+		})
+
+		Convey("it should advise the leader to resend data if the peer requires it", func() {
+			response := &pb.AppendEntriesResponse{
+				Term:    state.currentTerm,
+				Success: false,
+			}
+
+			request, demoted := peer.appendEntriesRequest(state, response)
+			So(request, ShouldNotBeNil)
+			So(demoted, ShouldBeFalse)
+			So(peer.nextIndex, ShouldBeLessThan, 2)
+		})
+	})
 }
 
 var replicaTestTimeout time.Duration = 5 * time.Millisecond
