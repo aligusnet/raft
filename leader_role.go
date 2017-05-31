@@ -152,8 +152,9 @@ func generateHeartbeetTimeout(timeout time.Duration) time.Duration {
 
 func stripToHeartbeet(request *pb.AppendEntriesRequest) {
 	if len(request.Entries) > 0 {
-		request.PrevLogIndex += int64(len(request.Entries))
-		request.PrevLogTerm = request.Term
+		lastEntry := request.Entries[len(request.Entries)-1]
+		request.PrevLogIndex = lastEntry.Index
+		request.PrevLogTerm = lastEntry.Term
 		request.Entries = request.Entries[:0]
 	}
 }

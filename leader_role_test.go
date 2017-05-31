@@ -155,7 +155,7 @@ func TestLeader_stripToHeartbeet(t *testing.T) {
 			PrevLogIndex: -1,
 			PrevLogTerm:  -1,
 			CommitIndex:  -1,
-			Entries:      []*pb.LogEntry{nil, nil, nil},
+			Entries:      []*pb.LogEntry{{Term: 2, Index: 0}, {Term: 3, Index: 1}, {Term: 4, Index: 2}},
 		}
 
 		stripToHeartbeet(request)
