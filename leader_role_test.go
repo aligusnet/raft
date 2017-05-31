@@ -131,3 +131,36 @@ func TestLeaderRole(t *testing.T) {
 		role.RunRole(ctx, state)
 	})
 }
+
+func TestLeader_stripToHeartbeet(t *testing.T) {
+	Convey("stripToHeartbeet: empty Entries list", t, func() {
+		request := &pb.AppendEntriesRequest{
+			Term:         4,
+			LeaderId:     1,
+			PrevLogIndex: -1,
+			PrevLogTerm:  -1,
+			CommitIndex:  -1,
+		}
+
+		stripToHeartbeet(request)
+		So(request.PrevLogIndex, ShouldEqual, -1)
+		So(request.PrevLogTerm, ShouldEqual, -1)
+		So(request.Entries, ShouldBeEmpty)
+	})
+
+	Convey("stripToHeartbeet: non-empty Entries list", t, func() {
+		request := &pb.AppendEntriesRequest{
+			Term:         4,
+			LeaderId:     1,
+			PrevLogIndex: -1,
+			PrevLogTerm:  -1,
+			CommitIndex:  -1,
+			Entries:      []*pb.LogEntry{nil, nil, nil},
+		}
+
+		stripToHeartbeet(request)
+		So(request.PrevLogIndex, ShouldEqual, 2)
+		So(request.PrevLogTerm, ShouldEqual, 4)
+		So(request.Entries, ShouldBeEmpty)
+	})
+}

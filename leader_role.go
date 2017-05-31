@@ -19,20 +19,49 @@ func newLeaderRole(dispatcher *Dispatcher) *LeaderRole {
 	}
 }
 
-const heartbeatTimeoutKey int = 174
+type appendEntriesPeerMessage struct {
+	peerId   int64
+	response *pb.AppendEntriesResponse
+}
+
+type heartbeatTimeoutKeyType int
+
+const heartbeatTimeoutKey heartbeatTimeoutKeyType = 174
 
 func (r *LeaderRole) RunRole(ctx context.Context, state *State) (RoleHandle, *State) {
 	timeout := generateHeartbeetTimeout(state.timeout)
 	ctx, cancel := context.WithCancel(ctx)
 	ctx = context.WithValue(ctx, heartbeatTimeoutKey, timeout)
 	defer cancel()
-	request := state.appendEntriesRequest(state.log.Size())
+
+	peersInCh := make(chan *appendEntriesPeerMessage, len(r.replicas))
+	peerOutChList := make(map[int64]chan *pb.AppendEntriesRequest)
 	for _, peer := range r.replicas {
+		peerOutChList[peer.id] = make(chan *pb.AppendEntriesRequest, 1)
 		peer.nextIndex = state.log.Size()
-		go peerThread(ctx, peer, request)
+		go peerThread(ctx, peer.id, peer.client, peersInCh, peerOutChList[peer.id])
 	}
+
+	// Initial heartbeat
+	request := state.appendEntriesRequest(state.log.Size())
+	for _, ch := range peerOutChList {
+		ch <- request
+	}
+
 	for {
 		select {
+		case appendEntriesPeer := <-peersInCh:
+			if peer, ok := r.replicas[appendEntriesPeer.peerId]; ok {
+				request, demoted := peer.appendEntriesRequest(state, appendEntriesPeer.response)
+				if demoted {
+					return FollowerRoleHandle, state
+				} else if request != nil {
+					out := peerOutChList[appendEntriesPeer.peerId]
+					out <- request
+				}
+			} else {
+				glog.Warning("Got appendEntriesPeerMessage from unknown peer:", appendEntriesPeer)
+			}
 		case requestVote := <-r.dispatcher.requestVoteCh:
 			response := r.requestVoteResponse(state, requestVote.in)
 			requestVote.send(response)
@@ -79,23 +108,38 @@ func (r *LeaderRole) appendEntriesResponse(state *State, in *pb.AppendEntriesReq
 	}
 }
 
-func peerThread(ctx context.Context, peer *Replica, r *pb.AppendEntriesRequest) {
-	request := new(pb.AppendEntriesRequest)
-	*request = *r
-	glog.Infof("[Leader] [peer thread: %v] sending initial AppendEntries (heartbeat): %v", peer.id, request)
-	peer.client.AppendEntries(ctx, request)
+func peerThread(ctx context.Context, id int64,
+	client pb.RaftClient,
+	out chan<- *appendEntriesPeerMessage,
+	in <-chan *pb.AppendEntriesRequest) {
 
+	var request *pb.AppendEntriesRequest
 	timeout := ctx.Value(heartbeatTimeoutKey).(time.Duration)
 	for {
 		select {
+		case request = <-in:
+			if resp, err := client.AppendEntries(ctx, request); err == nil {
+				stripToHeartbeet(request)
+				msg := &appendEntriesPeerMessage{
+					peerId:   id,
+					response: resp,
+				}
+				out <- msg
+			} else {
+				glog.Warningf("[Leader] [peer thread: %v] got error message from the peer: %v", id, err)
+			}
 		case <-time.After(timeout):
-			glog.Infof("[Leader] [peer thread: %v] sending AppendEntries (heartbeat): %v", peer.id, request)
-			_, err := peer.client.AppendEntries(ctx, request)
-			if err != nil {
-				glog.Warningf("[Leader] [peer thread: %v] failed to send AppendEntries to the peer: %v", peer.id, err)
+			if request != nil {
+				glog.Infof("[Leader] [peer thread: %v] sending AppendEntries (heartbeat): %v", id, request)
+				_, err := client.AppendEntries(ctx, request)
+				if err != nil {
+					glog.Warningf("[Leader] [peer thread: %v] failed to send AppendEntries to the peer: %v", id, err)
+				}
+			} else {
+				glog.Warningf("[Leader] [peer thread: %v] cannot send heartbeat due to empty request: %v", id)
 			}
 		case <-ctx.Done():
-			glog.Infof("[Leader] [peer thread: %v] exiting", peer.id)
+			glog.Infof("[Leader] [peer thread: %v] exiting", id)
 			return
 		}
 	}
@@ -104,4 +148,12 @@ func peerThread(ctx context.Context, peer *Replica, r *pb.AppendEntriesRequest) 
 func generateHeartbeetTimeout(timeout time.Duration) time.Duration {
 	ns := timeout.Nanoseconds() * 5 / 10
 	return time.Nanosecond * time.Duration(ns)
+}
+
+func stripToHeartbeet(request *pb.AppendEntriesRequest) {
+	if len(request.Entries) > 0 {
+		request.PrevLogIndex += int64(len(request.Entries))
+		request.PrevLogTerm = request.Term
+		request.Entries = request.Entries[:0]
+	}
 }
