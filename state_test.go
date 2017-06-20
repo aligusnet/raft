@@ -173,7 +173,7 @@ func TestState_AppendEntries(t *testing.T) {
 			So(request.Term, ShouldEqual, state.currentTerm)
 			So(request.PrevLogIndex, ShouldEqual, 2)
 			So(request.PrevLogTerm, ShouldEqual, 9)
-			So(request.CommitIndex, ShouldEqual, 0)
+			So(request.CommitIndex, ShouldEqual, -1)
 			So(request.Entries, ShouldBeEmpty)
 		})
 
@@ -183,7 +183,7 @@ func TestState_AppendEntries(t *testing.T) {
 				So(request.Term, ShouldEqual, state.currentTerm)
 				So(request.PrevLogIndex, ShouldEqual, 0)
 				So(request.PrevLogTerm, ShouldEqual, 8)
-				So(request.CommitIndex, ShouldEqual, 0)
+				So(request.CommitIndex, ShouldEqual, -1)
 				So(len(request.Entries), ShouldEqual, 2)
 			})
 
@@ -192,7 +192,7 @@ func TestState_AppendEntries(t *testing.T) {
 				So(request.Term, ShouldEqual, state.currentTerm)
 				So(request.PrevLogIndex, ShouldEqual, -1)
 				So(request.PrevLogTerm, ShouldEqual, -1)
-				So(request.CommitIndex, ShouldEqual, 0)
+				So(request.CommitIndex, ShouldEqual, -1)
 				So(len(request.Entries), ShouldEqual, 3)
 			})
 		})

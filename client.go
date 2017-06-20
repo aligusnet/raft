@@ -47,6 +47,7 @@ func (c *Client) ExecuteCommand(cmd []byte) ([]byte, error) {
 			glog.Info("command executed successfully")
 			return resp.Answer, nil
 		} else {
+			glog.Info("command executed with error")
 			return nil, &ClientError{"Failed to execute command on server due to unknown error"}
 		}
 	} else {

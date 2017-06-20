@@ -78,6 +78,14 @@ func newRequestVoteClient(votes ...bool) *clientMock {
 	return &clientMock{requestVote: requestVote}
 }
 
+func newAppendEntriesClient(success ...bool) *clientMock {
+	var appendEntries []*pb.AppendEntriesResponse
+	for _, s := range success {
+		appendEntries = append(appendEntries, &pb.AppendEntriesResponse{Success: s})
+	}
+	return &clientMock{appendEntries: appendEntries}
+}
+
 func (c *clientMock) RequestVote(ctx context.Context,
 	in *pb.RequestVoteRequest,
 	opts ...grpc.CallOption) (*pb.RequestVoteResponse, error) {

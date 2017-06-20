@@ -1,6 +1,8 @@
 package raft
 
 import (
+	"container/list"
+	"fmt"
 	pb "github.com/alexander-ignatyev/raft/raft"
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
@@ -8,20 +10,31 @@ import (
 )
 
 type LeaderRole struct {
-	dispatcher *Dispatcher
-	replicas   map[int64]*Replica
+	dispatcher    *Dispatcher
+	replicas      map[int64]*Replica
+	peerOutChList map[int64]chan *pb.AppendEntriesRequest
+	waitlist      *list.List
 }
 
 func newLeaderRole(dispatcher *Dispatcher) *LeaderRole {
 	return &LeaderRole{
 		dispatcher: dispatcher,
 		replicas:   make(map[int64]*Replica),
+		waitlist:   list.New(),
 	}
 }
 
 type appendEntriesPeerMessage struct {
-	peerId   int64
-	response *pb.AppendEntriesResponse
+	peerId       int64
+	response     *pb.AppendEntriesResponse
+	lastLogIndex int64
+}
+
+type executeCommandItem struct {
+	message              *executeCommandMessage
+	logIndex             int64
+	responses            map[int64]bool
+	numPositiveResponses int
 }
 
 type heartbeatTimeoutKeyType int
@@ -33,18 +46,19 @@ func (r *LeaderRole) RunRole(ctx context.Context, state *State) (RoleHandle, *St
 	ctx, cancel := context.WithCancel(ctx)
 	ctx = context.WithValue(ctx, heartbeatTimeoutKey, timeout)
 	defer cancel()
+	defer r.clean()
 
 	peersInCh := make(chan *appendEntriesPeerMessage, len(r.replicas))
-	peerOutChList := make(map[int64]chan *pb.AppendEntriesRequest)
+	r.peerOutChList = make(map[int64]chan *pb.AppendEntriesRequest)
 	for _, peer := range r.replicas {
-		peerOutChList[peer.id] = make(chan *pb.AppendEntriesRequest, 1)
+		r.peerOutChList[peer.id] = make(chan *pb.AppendEntriesRequest, 1)
 		peer.nextIndex = state.log.Size()
-		go peerThread(ctx, peer.id, peer.client, peersInCh, peerOutChList[peer.id])
+		go peerThread(ctx, peer.id, peer.client, peersInCh, r.peerOutChList[peer.id])
 	}
 
 	// Initial heartbeat
 	request := state.appendEntriesRequest(state.log.Size())
-	for _, ch := range peerOutChList {
+	for _, ch := range r.peerOutChList {
 		ch <- request
 	}
 
@@ -56,8 +70,12 @@ func (r *LeaderRole) RunRole(ctx context.Context, state *State) (RoleHandle, *St
 				if demoted {
 					return FollowerRoleHandle, state
 				} else if request != nil {
-					out := peerOutChList[appendEntriesPeer.peerId]
-					out <- request
+					out := r.peerOutChList[appendEntriesPeer.peerId]
+					go func() {
+						out <- request
+					}()
+				} else {
+					r.processAppendEntriesResponse(state, appendEntriesPeer)
 				}
 			} else {
 				glog.Warning("Got appendEntriesPeerMessage from unknown peer:", appendEntriesPeer)
@@ -75,8 +93,7 @@ func (r *LeaderRole) RunRole(ctx context.Context, state *State) (RoleHandle, *St
 				return FollowerRoleHandle, state
 			}
 		case executeCommand := <-r.dispatcher.executeCommandCh:
-			response := &pb.ExecuteCommandResponse{Success: true}
-			executeCommand.send(response)
+			r.executeCommand(state, executeCommand)
 		case <-ctx.Done():
 			return ExitRoleHandle, state
 		}
@@ -108,6 +125,73 @@ func (r *LeaderRole) appendEntriesResponse(state *State, in *pb.AppendEntriesReq
 	}
 }
 
+func (r *LeaderRole) executeCommand(state *State, message *executeCommandMessage) {
+	logIndex := state.log.Append(state.currentTerm, message.in.Command)
+	item := &executeCommandItem{
+		message:   message,
+		responses: make(map[int64]bool),
+		logIndex:  logIndex,
+	}
+	r.waitlist.PushBack(item)
+	for _, peer := range r.replicas {
+		request := state.appendEntriesRequest(peer.nextIndex)
+		if len(request.Entries) == 0 {
+			glog.Warningf("[Leader] got empty request for peer id %v", peer.id)
+			continue
+		}
+		ch, ok := r.peerOutChList[peer.id]
+		if ok {
+			go func() {
+				ch <- request
+			}()
+		} else {
+			glog.Warningf("[Leader] [peer: %v] cannot find the peer's channel, message won't be sent", peer.id)
+		}
+	}
+}
+
+func (r *LeaderRole) processAppendEntriesResponse(state *State, message *appendEntriesPeerMessage) {
+	glog.Infof("[Leader] got response from peer %v", message.response)
+	var next *list.Element
+	for e := r.waitlist.Front(); e != nil; e = next {
+		next = e.Next()
+		item, ok := e.Value.(*executeCommandItem)
+		if !ok {
+			glog.Errorf("[Leader] waitlist contains unexpected value: %v, %T", e.Value, e.Value)
+			continue
+		}
+		if item.logIndex > message.lastLogIndex {
+			break
+		}
+		if _, ok := item.responses[message.peerId]; !ok {
+			item.responses[message.peerId] = message.response.Success
+			if message.response.Success {
+				item.numPositiveResponses++
+				if item.numPositiveResponses >= requiredResponses(len(r.replicas)) {
+					glog.Infof("[Leader] sending success message for Execute Command, log index: %v", message.lastLogIndex)
+					state.commitIndex = item.logIndex
+					go item.message.send(&pb.ExecuteCommandResponse{Success: true})
+					r.waitlist.Remove(e)
+				}
+			}
+			if len(item.responses) >= len(r.replicas) {
+				glog.Infof("[Leader] sending fail message for Execute Command, log index: %v", message.lastLogIndex)
+				go item.message.send(&pb.ExecuteCommandResponse{Success: false})
+				r.waitlist.Remove(e)
+			}
+		}
+	}
+}
+
+func (r *LeaderRole) clean() {
+	var next *list.Element
+	for e := r.waitlist.Front(); e != nil; e = next {
+		next = e.Next()
+		item := e.Value.(*executeCommandItem)
+		go item.message.sendError(fmt.Errorf("Sorry, I am not a master any more"))
+	}
+}
+
 func peerThread(ctx context.Context, id int64,
 	client pb.RaftClient,
 	out chan<- *appendEntriesPeerMessage,
@@ -121,8 +205,9 @@ func peerThread(ctx context.Context, id int64,
 			if resp, err := client.AppendEntries(ctx, request); err == nil {
 				stripToHeartbeet(request)
 				msg := &appendEntriesPeerMessage{
-					peerId:   id,
-					response: resp,
+					peerId:       id,
+					response:     resp,
+					lastLogIndex: request.PrevLogIndex,
 				}
 				out <- msg
 			} else {
@@ -157,4 +242,8 @@ func stripToHeartbeet(request *pb.AppendEntriesRequest) {
 		request.PrevLogTerm = lastEntry.Term
 		request.Entries = request.Entries[:0]
 	}
+}
+
+func requiredResponses(replicasNum int) int {
+	return replicasNum/2 + 1
 }

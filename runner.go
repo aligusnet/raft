@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"container/list"
 	pb "github.com/alexander-ignatyev/raft/raft"
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
@@ -27,6 +28,7 @@ func Run(ctx context.Context, id int64, timeout time.Duration, log Log, endPoint
 	server.roles[LeaderRoleHandle] = &LeaderRole{
 		dispatcher: server.dispatcher,
 		replicas:   replicas,
+		waitlist:   list.New(),
 	}
 	server.roles[FollowerRoleHandle] = &FollowerRole{dispatcher: server.dispatcher}
 	server.roles[CandidateRoleHandle] = &CandidateRole{

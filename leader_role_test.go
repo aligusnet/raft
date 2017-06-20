@@ -115,9 +115,16 @@ func TestLeaderRole(t *testing.T) {
 	})
 
 	Convey("Replica should respond on executeCommand", t, func(c C) {
-		state := newState(1, time.Millisecond*10, NewLog())
+		state := newState(11, time.Millisecond*10, NewLog())
 		dispatcher := newDispatcher()
 		ctx, cancel := context.WithCancel(context.Background())
+
+		role := newLeaderRole(dispatcher)
+		for i := int64(0); i < 4; i++ {
+			client := newAppendEntriesClient(true, true)
+			role.replicas[i] = &Replica{client: client, id: i}
+		}
+
 		go func() {
 			time.Sleep(2 * time.Millisecond)
 			request := &pb.ExecuteCommandRequest{[]byte("Command1")}
@@ -127,8 +134,9 @@ func TestLeaderRole(t *testing.T) {
 			cancel()
 		}()
 
-		role := newLeaderRole(dispatcher)
+		expectedCommitIndex := state.commitIndex + 1
 		role.RunRole(ctx, state)
+		c.So(state.commitIndex, ShouldEqual, expectedCommitIndex)
 	})
 }
 

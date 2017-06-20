@@ -73,8 +73,13 @@ func main() {
 
 	for i := int64(0); i < 5; i++ {
 		glog.Infof("starting server # %v", i)
-		servers[i] = newServerInfo(i)
-		servers[i].Start()
+		server := newServerInfo(i)
+		index := i
+		servers[i] = server
+		go func() {
+			output := server.CombinedOutput()
+			fmt.Printf("\n\nServer %v output: %s\n\n\n", index, output)
+		}()
 	}
 
 	defer func() {
@@ -95,5 +100,6 @@ func main() {
 	glog.Info("waiting for client termination")
 	clients[0].cmd.Wait()
 
+	time.Sleep(time.Second)
 	servers[0].cmd.Wait()
 }

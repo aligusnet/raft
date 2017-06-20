@@ -25,6 +25,7 @@ func newState(id int64, timeout time.Duration, log Log) *State {
 		votedFor:        id,
 		currentLeaderId: -1,
 		addresses:       make(map[int64]string),
+		commitIndex:     -1,
 	}
 }
 
