@@ -169,15 +169,18 @@ func (r *LeaderRole) processAppendEntriesResponse(state *State, message *appendE
 				item.numPositiveResponses++
 				if item.numPositiveResponses >= requiredResponses(len(r.replicas)) {
 					glog.Infof("[Leader] sending success message for Execute Command, log index: %v", message.lastLogIndex)
-					state.commitIndex = item.logIndex
-					go item.message.send(&pb.ExecuteCommandResponse{Success: true})
+					res, err := state.commitUpTo(item.logIndex)
+					if err == nil {
+						go item.message.send(&pb.ExecuteCommandResponse{Success: true, Answer: res})
+					} else {
+						go item.message.sendError(err)
+					}
+
 					r.waitlist.Remove(e)
 				}
 			}
 			if len(item.responses) >= len(r.replicas) {
-				glog.Infof("[Leader] sending fail message for Execute Command, log index: %v", message.lastLogIndex)
-				go item.message.send(&pb.ExecuteCommandResponse{Success: false})
-				r.waitlist.Remove(e)
+				glog.Fatalf("[Leader] Failed to execute command, log index: %v", message.lastLogIndex)
 			}
 		}
 	}

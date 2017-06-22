@@ -9,7 +9,7 @@ import (
 
 func TestState(t *testing.T) {
 	Convey("Given just created state", t, func() {
-		state := newState(1, time.Millisecond*10, NewLog())
+		state := newState(1, time.Millisecond*10, NewLog(), &noOpStateMachine{})
 
 		Convey("lastLogIndexAndTerm", func() {
 			lastLogIndex, lastLogTerm := state.lastLogIndexAndTerm()
@@ -18,7 +18,7 @@ func TestState(t *testing.T) {
 		})
 	})
 	Convey("Given initialized aged state", t, func() {
-		state := newState(1, time.Millisecond*10, NewLog())
+		state := newState(1, time.Millisecond*10, NewLog(), &noOpStateMachine{})
 		state.currentTerm = 10
 		state.log.Append(8, []byte("cmd1"))
 		state.log.Append(8, []byte("cmd2"))
@@ -34,18 +34,18 @@ func TestState(t *testing.T) {
 
 func TestState_LeaderAddress(t *testing.T) {
 	Convey("No leader", t, func() {
-		state := newState(1, time.Millisecond*10, NewLog())
+		state := newState(1, time.Millisecond*10, NewLog(), &noOpStateMachine{})
 		So(state.leaderAddress(), ShouldBeEmpty)
 	})
 
 	Convey("No leader's address", t, func() {
-		state := newState(1, time.Millisecond*10, NewLog())
+		state := newState(1, time.Millisecond*10, NewLog(), &noOpStateMachine{})
 		state.currentLeaderId = 2
 		So(state.leaderAddress(), ShouldBeEmpty)
 	})
 
 	Convey("We have leader and its address", t, func() {
-		state := newState(1, time.Millisecond*10, NewLog())
+		state := newState(1, time.Millisecond*10, NewLog(), &noOpStateMachine{})
 		state.currentLeaderId = 2
 		state.addresses[2] = "address898"
 		So(state.leaderAddress(), ShouldEqual, "address898")
@@ -54,7 +54,7 @@ func TestState_LeaderAddress(t *testing.T) {
 
 func TestState_RequestVote(t *testing.T) {
 	Convey("Given initialized non-voted state", t, func() {
-		state := newState(1, time.Millisecond*10, NewLog())
+		state := newState(1, time.Millisecond*10, NewLog(), &noOpStateMachine{})
 		state.currentTerm = 10
 		state.log.Append(8, []byte("cmd1"))
 		state.log.Append(8, []byte("cmd2"))
@@ -143,7 +143,7 @@ func TestState_RequestVote(t *testing.T) {
 	})
 
 	Convey("Given initialized voted state", t, func() {
-		state := newState(1, time.Millisecond*10, NewLog())
+		state := newState(1, time.Millisecond*10, NewLog(), &noOpStateMachine{})
 		state.currentTerm = 10
 		state.log.Append(8, []byte("cmd1"))
 		state.log.Append(8, []byte("cmd2"))
@@ -162,7 +162,7 @@ func TestState_RequestVote(t *testing.T) {
 
 func TestState_AppendEntries(t *testing.T) {
 	Convey("Given initialized state", t, func() {
-		state := newState(1, time.Millisecond*10, NewLog())
+		state := newState(1, time.Millisecond*10, NewLog(), &noOpStateMachine{})
 		state.currentTerm = 10
 		state.log.Append(8, []byte("cmd1"))
 		state.log.Append(8, []byte("cmd2"))
@@ -197,7 +197,7 @@ func TestState_AppendEntries(t *testing.T) {
 			})
 		})
 
-		peerState := newState(2, time.Millisecond*10, NewLog())
+		peerState := newState(2, time.Millisecond*10, NewLog(), &noOpStateMachine{})
 		peerState.log.Append(8, []byte("cmd1"))
 		peerState.log.Append(8, []byte("cmd2"))
 		peerState.log.Append(9, []byte("cmd3"))

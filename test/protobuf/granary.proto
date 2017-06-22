@@ -1,0 +1,46 @@
+syntax="proto3";
+
+package granary;
+
+
+message Request {
+    oneof request {
+        GranaryInfoRequest granaryInfo = 1;
+        PutGrainRequest putGrain = 2;
+        TakeGrainRequest takeGrain = 3;
+    }
+}
+
+message Response {
+    oneof response {
+        GranaryInfoResponse granaryInfo = 1;
+        PutGrainResponse putGrain = 2;
+        TakeGrainResponse takeGrain = 3;
+    }
+}
+
+message GranaryInfoRequest {
+}
+
+message GranaryInfoResponse {
+    int64 size = 1;
+    int64 capacity = 2;
+}
+
+message PutGrainRequest {
+    int64 number = 1;
+}
+
+message PutGrainResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message TakeGrainRequest {
+    int64 number = 1;
+}
+
+message TakeGrainResponse {
+    bool success = 1;
+    string message = 2;
+}

@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func Run(ctx context.Context, id int64, timeout time.Duration, log Log, endPointAddresses map[int64]string) {
+func Run(ctx context.Context, id int64, timeout time.Duration, log Log, endPointAddresses map[int64]string, machine StateMachine) {
 	server := newServer(ctx)
 	lis, err := net.Listen("tcp", endPointAddresses[id])
 	if err != nil {
@@ -36,7 +36,7 @@ func Run(ctx context.Context, id int64, timeout time.Duration, log Log, endPoint
 		replicas:   replicas,
 	}
 
-	state := newState(id, timeout, log)
+	state := newState(id, timeout, log, machine)
 	state.addresses = endPointAddresses
 	go server.run(FollowerRoleHandle, state)
 

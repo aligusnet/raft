@@ -1,7 +1,9 @@
 package raft
 
 import (
+	"fmt"
 	pb "github.com/alexander-ignatyev/raft/raft"
+	"github.com/golang/glog"
 	"time"
 )
 
@@ -15,9 +17,10 @@ type State struct {
 	timeout         time.Duration
 	log             Log
 	addresses       map[int64]string
+	machine         StateMachine
 }
 
-func newState(id int64, timeout time.Duration, log Log) *State {
+func newState(id int64, timeout time.Duration, log Log, machine StateMachine) *State {
 	return &State{
 		id:              id,
 		timeout:         timeout,
@@ -26,6 +29,7 @@ func newState(id int64, timeout time.Duration, log Log) *State {
 		currentLeaderId: -1,
 		addresses:       make(map[int64]string),
 		commitIndex:     -1,
+		machine:         machine,
 	}
 }
 
@@ -131,21 +135,47 @@ func (s *State) appendEntriesResponse(request *pb.AppendEntriesRequest) (*pb.App
 		s.currentTerm = request.Term
 		response.Term = s.currentTerm
 
-		// TODO: revise logic of processing AppendEntries
 		response.Success = false
 		if request.PrevLogIndex < 0 {
 			response.Success = true
-			s.log.EraseAfter(request.PrevLogIndex)
 		} else if lastLogIndex >= request.PrevLogIndex {
 			prevLogTerm := s.log.Get(request.PrevLogIndex).Term
-			if prevLogTerm == request.PrevLogTerm {
-				response.Success = true
-				s.log.EraseAfter(request.PrevLogIndex)
-				for _, entry := range request.Entries {
-					s.log.Append(entry.Term, entry.Command)
-				}
+			response.Success = prevLogTerm == request.PrevLogTerm
+		}
+
+		if response.Success {
+			s.log.EraseAfter(request.PrevLogIndex)
+			for _, entry := range request.Entries {
+				s.log.Append(entry.Term, entry.Command)
 			}
 		}
+
 		return response, true
 	}
+}
+
+func (s *State) commitUpTo(index int64) ([]byte, error) {
+	if index < 0 {
+		return nil, nil
+	}
+	var err error = nil
+	var res []byte = nil
+	if index >= s.log.Size() {
+		err = fmt.Errorf("Got incorrect commit index: %v, log's size: %v", index, s.log.Size())
+		glog.Error(err)
+		glog.Flush()
+		return nil, err
+	}
+	for i := s.commitIndex + 1; i <= index; i++ {
+		res, err = s.machine.ExecuteCommand(s.log.Get(i).Command)
+		if err != nil {
+			glog.Warningf("Got error after executing command # %v: %v", i, err)
+		}
+	}
+	if s.commitIndex != index {
+		s.commitIndex = index
+		glog.Infof("State Machine after executed command # %v: %v", index, s.machine.Debug())
+		glog.Flush()
+	}
+	return res, err
 }
