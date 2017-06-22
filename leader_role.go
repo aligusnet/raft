@@ -166,6 +166,7 @@ func (r *LeaderRole) processAppendEntriesResponse(state *State, message *appendE
 		if _, ok := item.responses[message.peerId]; !ok {
 			item.responses[message.peerId] = message.response.Success
 			if message.response.Success {
+				r.replicas[message.peerId].nextIndex = item.logIndex + 1
 				item.numPositiveResponses++
 				if item.numPositiveResponses >= requiredResponses(len(r.replicas)) {
 					glog.Infof("[Leader] sending success message for Execute Command, log index: %v", message.lastLogIndex)
