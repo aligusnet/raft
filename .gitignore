@@ -1,10 +1,5 @@
 .idea/
-*.log.*
-*.INFO
-*.WARNING
-*.ERROR
-*.FATAL
-
+test/logs
 test/test
 test/client/client
 test/server/server
