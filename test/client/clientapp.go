@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/alexander-ignatyev/raft"
+	"github.com/alexander-ignatyev/raft/client"
 	gsmpb "github.com/alexander-ignatyev/raft/test/protobuf"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -19,7 +19,7 @@ func (e *GranaryClientError) Error() string {
 }
 
 type GranaryClient struct {
-	client *raft.Client
+	client *client.Client
 }
 
 func (gc *GranaryClient) send(request *gsmpb.Request) (*gsmpb.Response, error) {
@@ -129,7 +129,7 @@ func main() {
 	flag.Parse()
 	glog.Info("Hello from client")
 
-	raftClient := raft.NewClient(serverAddresses)
+	raftClient := client.NewClient(serverAddresses)
 	defer raftClient.CloseConnection()
 
 	client := &GranaryClient{client: raftClient}

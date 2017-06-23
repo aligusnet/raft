@@ -1,4 +1,4 @@
-package raft
+package client
 
 import (
 	pb "github.com/alexander-ignatyev/raft/raft"
@@ -7,20 +7,13 @@ import (
 	"google.golang.org/grpc"
 	"math/rand"
 	"time"
+	"fmt"
 )
 
 type Client struct {
 	conn            *grpc.ClientConn
 	client          pb.RaftClient
 	serverAddresses []string
-}
-
-type ClientError struct {
-	message string
-}
-
-func (e *ClientError) Error() string {
-	return e.message
 }
 
 func NewClient(serverAddresses []string) *Client {
@@ -35,7 +28,7 @@ func (c *Client) IsConnected() bool {
 
 func (c *Client) ExecuteCommand(cmd []byte) ([]byte, error) {
 	if !c.IsConnected() {
-		return nil, &ClientError{"client is not connected"}
+		return nil, fmt.Errorf("client is not connected")
 	}
 	if resp, err := c.client.ExecuteCommand(context.Background(), &pb.ExecuteCommandRequest{cmd}); err == nil {
 		if resp.Success == false && len(resp.ServerAddress) > 0 {
@@ -48,7 +41,7 @@ func (c *Client) ExecuteCommand(cmd []byte) ([]byte, error) {
 			return resp.Answer, nil
 		} else {
 			glog.Info("command executed with error")
-			return nil, &ClientError{"Failed to execute command on server due to unknown error"}
+			return nil, fmt.Errorf("Failed to execute command on server due to unknown error")
 		}
 	} else {
 		glog.Info("Failed to execute command, reconnecting and trying again...")
@@ -66,7 +59,7 @@ func (c *Client) CloseConnection() {
 }
 
 func (c *Client) reconnect() {
-	var err error = &ClientError{}
+	var err error = fmt.Errorf("error")
 	for err != nil {
 		instance := rand.Intn(len(c.serverAddresses))
 		err = c.Connect(c.serverAddresses[instance])
