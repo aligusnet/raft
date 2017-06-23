@@ -129,7 +129,7 @@ func main() {
 	flag.Parse()
 	glog.Info("Hello from client")
 
-	raftClient := client.NewClient(serverAddresses)
+	raftClient := client.New(serverAddresses)
 	defer raftClient.CloseConnection()
 
 	client := &GranaryClient{client: raftClient}

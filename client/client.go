@@ -16,7 +16,7 @@ type Client struct {
 	serverAddresses []string
 }
 
-func NewClient(serverAddresses []string) *Client {
+func New(serverAddresses []string) *Client {
 	c := &Client{serverAddresses: serverAddresses}
 	c.reconnect()
 	return c
