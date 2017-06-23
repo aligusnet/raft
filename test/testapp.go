@@ -68,10 +68,10 @@ func (p *ProcessInfo) Stop() {
 
 func main() {
 	flag.Parse()
-	clients := make([]*ProcessInfo, 1)
+	clients := make([]*ProcessInfo, 10)
 	servers := make([]*ProcessInfo, 5)
 
-	for i := int64(0); i < 5; i++ {
+	for i := int64(0); i < int64(len(servers)); i++ {
 		glog.Infof("starting server # %v", i)
 		server := newServerInfo(i)
 		index := i
@@ -90,7 +90,14 @@ func main() {
 	}()
 
 	time.Sleep(100 * time.Millisecond)
-	glog.Info("staring client")
+	glog.Info("starting client # 0")
+
+	for i := 1; i < len(clients); i++ {
+		glog.Infof("starting client # %v", i)
+		clients[i] = newClientInfo(int64(i))
+		clients[i].Start()
+	}
+
 	clients[0] = newClientInfo(0)
 
 	output := clients[0].CombinedOutput()

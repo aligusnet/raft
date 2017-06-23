@@ -53,7 +53,7 @@ func (gsm *GranaryStateMachine) ExecuteCommand(cmd []byte) ([]byte, error) {
 		resp := &gsmpb.GranaryInfoResponse{Size: gsm.size,
 			Capacity: gsm.capacity}
 		response.Response = &gsmpb.Response_GranaryInfo{resp}
-		glog.Infof("GranaryStateMachine.getGranaryInfo error: %v", response.Response)
+		glog.Infof("GranaryStateMachine.getGranaryInfo: %v", response.Response)
 	}
 
 	if putGrain := request.GetPutGrain(); putGrain != nil {
@@ -127,7 +127,7 @@ func main() {
 		endpoints[int64(id)] = fmt.Sprintf("localhost:%v", port)
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Second*10)
+	ctx := context.Background()
 
 	raft.Run(ctx, int64(index), 200*time.Millisecond, raft.NewLog(), endpoints, &GranaryStateMachine{size: 100, capacity: 1000})
 
