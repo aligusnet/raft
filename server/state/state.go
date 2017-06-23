@@ -2,7 +2,7 @@ package state
 
 import (
 	"fmt"
-	"github.com/alexander-ignatyev/raft/log"
+	"github.com/alexander-ignatyev/raft/server/log"
 	pb "github.com/alexander-ignatyev/raft/raft"
 	"github.com/golang/glog"
 	"time"

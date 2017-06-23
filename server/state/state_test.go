@@ -1,7 +1,7 @@
 package state
 
 import (
-	"github.com/alexander-ignatyev/raft/log"
+	"github.com/alexander-ignatyev/raft/server/log"
 	pb "github.com/alexander-ignatyev/raft/raft"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"

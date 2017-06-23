@@ -1,8 +1,8 @@
-package raft
+package server
 
 import (
 	"fmt"
-	"github.com/alexander-ignatyev/raft/state"
+	"github.com/alexander-ignatyev/raft/server/state"
 	"golang.org/x/net/context"
 )
 

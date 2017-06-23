@@ -1,8 +1,8 @@
-package raft
+package server
 
 import (
 	pb "github.com/alexander-ignatyev/raft/raft"
-	"github.com/alexander-ignatyev/raft/state"
+	"github.com/alexander-ignatyev/raft/server/state"
 )
 
 type Replica struct {

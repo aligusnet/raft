@@ -1,8 +1,8 @@
-package raft
+package server
 
 import (
-	"github.com/alexander-ignatyev/raft/log"
-	"github.com/alexander-ignatyev/raft/state"
+	"github.com/alexander-ignatyev/raft/server/log"
+	"github.com/alexander-ignatyev/raft/server/state"
 	"time"
 )
 

@@ -1,9 +1,9 @@
-package raft
+package server
 
 import (
 	"fmt"
 	pb "github.com/alexander-ignatyev/raft/raft"
-	"github.com/alexander-ignatyev/raft/state"
+	"github.com/alexander-ignatyev/raft/server/state"
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 	"time"

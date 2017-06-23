@@ -1,10 +1,10 @@
-package raft
+package server
 
 import (
 	"fmt"
-	"github.com/alexander-ignatyev/raft/log"
+	"github.com/alexander-ignatyev/raft/server/log"
 	pb "github.com/alexander-ignatyev/raft/raft"
-	"github.com/alexander-ignatyev/raft/state"
+	"github.com/alexander-ignatyev/raft/server/state"
 	. "github.com/smartystreets/goconvey/convey"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"

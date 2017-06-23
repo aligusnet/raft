@@ -1,7 +1,7 @@
-package raft
+package server
 
 import (
-	"github.com/alexander-ignatyev/raft/state"
+	"github.com/alexander-ignatyev/raft/server/state"
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 )
