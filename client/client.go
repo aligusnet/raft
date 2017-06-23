@@ -1,13 +1,13 @@
 package client
 
 import (
+	"fmt"
 	pb "github.com/alexander-ignatyev/raft/raft"
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"math/rand"
 	"time"
-	"fmt"
 )
 
 type Client struct {

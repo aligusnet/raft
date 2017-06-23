@@ -1,4 +1,4 @@
-package raft
+package log
 
 import (
 	pb "github.com/alexander-ignatyev/raft/raft"
@@ -19,7 +19,7 @@ type Log interface {
 	LogWriter
 }
 
-func NewLog() Log {
+func New() Log {
 	return new(arrayLog)
 }
 

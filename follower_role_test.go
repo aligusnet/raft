@@ -10,36 +10,36 @@ import (
 
 func TestFollowerRole(t *testing.T) {
 	Convey("Replica should respond on requestVote", t, func(c C) {
-		state := newState(1, time.Millisecond*10, NewLog(), &noOpStateMachine{})
+		followerState := newTestState(1, 10)
 		dispatcher := newDispatcher()
 
 		go func() {
 			time.Sleep(2 * time.Millisecond)
-			peerState := newState(2, time.Millisecond*10, NewLog(), &noOpStateMachine{})
-			peerState.currentTerm = state.currentTerm + 1
-			peerState.log.Append(1, []byte("cmd1"))
-			request := peerState.requestVoteRequest()
+			peerState := newTestState(2, 10)
+			peerState.CurrentTerm = followerState.CurrentTerm + 1
+			peerState.Log.Append(1, []byte("cmd1"))
+			request := peerState.RequestVoteRequest()
 			response, err := dispatcher.RequestVote(context.Background(), request)
 			c.So(response.VoteGranted, ShouldBeTrue)
 			c.So(err, ShouldBeNil)
 		}()
 
 		role := &FollowerRole{dispatcher: dispatcher}
-		rh, _ := role.RunRole(context.Background(), state)
+		rh, _ := role.RunRole(context.Background(), followerState)
 		c.So(rh, ShouldEqual, CandidateRoleHandle)
 	})
 
 	Convey("Replica should respond on appendEntries", t, func(c C) {
-		state := newState(1, time.Millisecond*10, NewLog(), &noOpStateMachine{})
+		followerState := newTestState(1, 10)
 		dispatcher := newDispatcher()
 		ctx, cancel := context.WithCancel(context.Background())
 
 		go func() {
 			time.Sleep(2 * time.Millisecond)
-			peerState := newState(2, time.Millisecond*10, NewLog(), &noOpStateMachine{})
-			peerState.currentTerm = state.currentTerm + 1
-			peerState.log.Append(1, []byte("cmd1"))
-			request := peerState.appendEntriesRequest(1)
+			peerState := newTestState(2, 10)
+			peerState.CurrentTerm = followerState.CurrentTerm + 1
+			peerState.Log.Append(1, []byte("cmd1"))
+			request := peerState.AppendEntriesRequest(1)
 			response, err := dispatcher.AppendEntries(context.Background(), request)
 			c.So(response, ShouldNotBeNil)
 			c.So(err, ShouldBeNil)
@@ -47,15 +47,16 @@ func TestFollowerRole(t *testing.T) {
 		}()
 
 		role := &FollowerRole{dispatcher: dispatcher}
-		role.RunRole(ctx, state)
-		c.So(state.currentLeaderId, ShouldEqual, 2)
+		role.RunRole(ctx, followerState)
+		c.So(followerState.CurrentLeaderId, ShouldEqual, 2)
 	})
 
 	Convey("Replica should respond on executeCommand", t, func(c C) {
-		state := newState(1, time.Millisecond*10, NewLog(), &noOpStateMachine{})
+		addresses := make(map[int64]string)
+		addresses[2] = "address737"
+		followerState := newTestStateWithAddresses(1, 10, addresses)
 		dispatcher := newDispatcher()
-		state.currentLeaderId = 2
-		state.addresses[2] = "address737"
+		followerState.CurrentLeaderId = 2
 		go func() {
 			time.Sleep(2 * time.Millisecond)
 			request := &pb.ExecuteCommandRequest{[]byte("Command1")}
@@ -66,19 +67,19 @@ func TestFollowerRole(t *testing.T) {
 		}()
 
 		role := &FollowerRole{dispatcher: dispatcher}
-		role.RunRole(context.Background(), state)
+		role.RunRole(context.Background(), followerState)
 	})
 
 	Convey("Replica should become Candidate given deadline passes", t, func() {
-		state := newState(1, time.Millisecond, NewLog(), &noOpStateMachine{})
+		followerState := newTestState(1, 10)
 
 		role := &FollowerRole{dispatcher: newDispatcher()}
-		rh, _ := role.RunRole(context.Background(), state)
+		rh, _ := role.RunRole(context.Background(), followerState)
 		So(rh, ShouldEqual, CandidateRoleHandle)
 	})
 
 	Convey("Replica should exit given cancelation", t, func() {
-		state := newState(1, time.Millisecond*10, NewLog(), &noOpStateMachine{})
+		state := newTestState(1, 10)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		role := &FollowerRole{dispatcher: newDispatcher()}

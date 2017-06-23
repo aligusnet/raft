@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/alexander-ignatyev/raft"
+	"github.com/alexander-ignatyev/raft/log"
 	gsmpb "github.com/alexander-ignatyev/raft/test/protobuf"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -129,7 +130,7 @@ func main() {
 
 	ctx := context.Background()
 
-	raft.Run(ctx, int64(index), 200*time.Millisecond, raft.NewLog(), endpoints, &GranaryStateMachine{size: 100, capacity: 1000})
+	raft.Run(ctx, int64(index), 200*time.Millisecond, log.New(), endpoints, &GranaryStateMachine{size: 100, capacity: 1000})
 
 	glog.Info("Application is shutting down")
 	glog.Flush()

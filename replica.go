@@ -2,6 +2,7 @@ package raft
 
 import (
 	pb "github.com/alexander-ignatyev/raft/raft"
+	"github.com/alexander-ignatyev/raft/state"
 )
 
 type Replica struct {
@@ -15,7 +16,7 @@ type Replica struct {
 // respond on peer's AppendEntriesRespond. Suitable if the current replica is leader.
 // return AppendEntriesRequest if we need to send new request to the peer,
 // return true if the leader has to be "demoted" to follower.
-func (peer *Replica) appendEntriesRequest(state *State,
+func (peer *Replica) appendEntriesRequest(state *state.State,
 	in *pb.AppendEntriesResponse,
 ) (*pb.AppendEntriesRequest, bool) {
 
@@ -23,10 +24,10 @@ func (peer *Replica) appendEntriesRequest(state *State,
 		return nil, false
 	}
 
-	if in.Term > state.currentTerm {
+	if in.Term > state.CurrentTerm {
 		return nil, true
 	}
 
 	peer.nextIndex--
-	return state.appendEntriesRequest(peer.nextIndex), false
+	return state.AppendEntriesRequest(peer.nextIndex), false
 }

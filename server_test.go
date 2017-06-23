@@ -2,6 +2,7 @@ package raft
 
 import (
 	pb "github.com/alexander-ignatyev/raft/raft"
+	"github.com/alexander-ignatyev/raft/state"
 	. "github.com/smartystreets/goconvey/convey"
 	"golang.org/x/net/context"
 	"testing"
@@ -59,7 +60,7 @@ func newSimpleRole(s *Server) *simpleRole {
 	return &simpleRole{dispatcher: s.dispatcher}
 }
 
-func (r *simpleRole) RunRole(ctx context.Context, state *State) (RoleHandle, *State) {
+func (r *simpleRole) RunRole(ctx context.Context, state *state.State) (RoleHandle, *state.State) {
 	for {
 		select {
 		case requestVote := <-r.dispatcher.requestVoteCh:

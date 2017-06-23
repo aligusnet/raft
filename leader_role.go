@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"fmt"
 	pb "github.com/alexander-ignatyev/raft/raft"
+	"github.com/alexander-ignatyev/raft/state"
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 	"time"
@@ -41,8 +42,8 @@ type heartbeatTimeoutKeyType int
 
 const heartbeatTimeoutKey heartbeatTimeoutKeyType = 174
 
-func (r *LeaderRole) RunRole(ctx context.Context, state *State) (RoleHandle, *State) {
-	timeout := generateHeartbeetTimeout(state.timeout)
+func (r *LeaderRole) RunRole(ctx context.Context, state *state.State) (RoleHandle, *state.State) {
+	timeout := generateHeartbeetTimeout(state.Timeout)
 	ctx, cancel := context.WithCancel(ctx)
 	ctx = context.WithValue(ctx, heartbeatTimeoutKey, timeout)
 	defer cancel()
@@ -52,12 +53,12 @@ func (r *LeaderRole) RunRole(ctx context.Context, state *State) (RoleHandle, *St
 	r.peerOutChList = make(map[int64]chan *pb.AppendEntriesRequest)
 	for _, peer := range r.replicas {
 		r.peerOutChList[peer.id] = make(chan *pb.AppendEntriesRequest, 1)
-		peer.nextIndex = state.log.Size()
+		peer.nextIndex = state.Log.Size()
 		go peerThread(ctx, peer.id, peer.client, peersInCh, r.peerOutChList[peer.id])
 	}
 
 	// Initial heartbeat
-	request := state.appendEntriesRequest(state.log.Size())
+	request := state.AppendEntriesRequest(state.Log.Size())
 	for _, ch := range r.peerOutChList {
 		ch <- request
 	}
@@ -100,33 +101,33 @@ func (r *LeaderRole) RunRole(ctx context.Context, state *State) (RoleHandle, *St
 	}
 }
 
-func (r *LeaderRole) requestVoteResponse(state *State, in *pb.RequestVoteRequest) *pb.RequestVoteResponse {
-	if in.Term <= state.currentTerm {
+func (r *LeaderRole) requestVoteResponse(state *state.State, in *pb.RequestVoteRequest) *pb.RequestVoteResponse {
+	if in.Term <= state.CurrentTerm {
 		return &pb.RequestVoteResponse{
-			Term:        state.currentTerm,
+			Term:        state.CurrentTerm,
 			VoteGranted: false,
 		}
 	} else {
-		return state.requestVoteResponse(in)
+		return state.RequestVoteResponse(in)
 	}
 }
 
-func (r *LeaderRole) appendEntriesResponse(state *State, in *pb.AppendEntriesRequest) (*pb.AppendEntriesResponse, bool) {
-	if in.Term == state.currentLeaderId {
+func (r *LeaderRole) appendEntriesResponse(state *state.State, in *pb.AppendEntriesRequest) (*pb.AppendEntriesResponse, bool) {
+	if in.Term == state.CurrentLeaderId {
 		glog.Fatalf("[Leader] got appendEntries from another leader with the same Term: %v", in)
 	}
-	if in.Term < state.currentTerm {
+	if in.Term < state.CurrentTerm {
 		return &pb.AppendEntriesResponse{
-			Term:    state.currentTerm,
+			Term:    state.CurrentTerm,
 			Success: false,
 		}, false
 	} else {
-		return state.appendEntriesResponse(in)
+		return state.AppendEntriesResponse(in)
 	}
 }
 
-func (r *LeaderRole) executeCommand(state *State, message *executeCommandMessage) {
-	logIndex := state.log.Append(state.currentTerm, message.in.Command)
+func (r *LeaderRole) executeCommand(state *state.State, message *executeCommandMessage) {
+	logIndex := state.Log.Append(state.CurrentTerm, message.in.Command)
 	item := &executeCommandItem{
 		message:   message,
 		responses: make(map[int64]bool),
@@ -134,7 +135,7 @@ func (r *LeaderRole) executeCommand(state *State, message *executeCommandMessage
 	}
 	r.waitlist.PushBack(item)
 	for _, peer := range r.replicas {
-		request := state.appendEntriesRequest(peer.nextIndex)
+		request := state.AppendEntriesRequest(peer.nextIndex)
 		if len(request.Entries) == 0 {
 			glog.Warningf("[Leader] got empty request for peer id %v", peer.id)
 			continue
@@ -150,7 +151,7 @@ func (r *LeaderRole) executeCommand(state *State, message *executeCommandMessage
 	}
 }
 
-func (r *LeaderRole) processAppendEntriesResponse(state *State, message *appendEntriesPeerMessage) {
+func (r *LeaderRole) processAppendEntriesResponse(state *state.State, message *appendEntriesPeerMessage) {
 	glog.Infof("[Leader] got response from peer %v", message.response)
 	var next *list.Element
 	for e := r.waitlist.Front(); e != nil; e = next {
@@ -170,7 +171,7 @@ func (r *LeaderRole) processAppendEntriesResponse(state *State, message *appendE
 				item.numPositiveResponses++
 				if item.numPositiveResponses >= requiredResponses(len(r.replicas)) {
 					glog.Infof("[Leader] sending success message for Execute Command, log index: %v", message.lastLogIndex)
-					res, err := state.commitUpTo(item.logIndex)
+					res, err := state.CommitUpTo(item.logIndex)
 					if err == nil {
 						go item.message.send(&pb.ExecuteCommandResponse{Success: true, Answer: res})
 					} else {

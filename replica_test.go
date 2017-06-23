@@ -2,7 +2,9 @@ package raft
 
 import (
 	"fmt"
+	"github.com/alexander-ignatyev/raft/log"
 	pb "github.com/alexander-ignatyev/raft/raft"
+	"github.com/alexander-ignatyev/raft/state"
 	. "github.com/smartystreets/goconvey/convey"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -25,16 +27,16 @@ func TestPeer_AppendEntriesResponse(t *testing.T) {
 		nextIndex: 2,
 	}
 
-	state := &State{
-		currentTerm: 4,
-		log:         NewLog(),
+	state := &state.State{
+		CurrentTerm: 4,
+		Log:         log.New(),
 	}
-	state.log.Append(4, []byte("command1"))
+	state.Log.Append(4, []byte("command1"))
 
 	Convey("Peer should correctly respond on AppendEntriesResponse", t, func() {
 		Convey("it should do nothing if the initial request succeeded", func() {
 			response := &pb.AppendEntriesResponse{
-				Term:    state.currentTerm,
+				Term:    state.CurrentTerm,
 				Success: true,
 			}
 
@@ -45,7 +47,7 @@ func TestPeer_AppendEntriesResponse(t *testing.T) {
 
 		Convey("it should advise the leader to demote if Term > currentTerm", func() {
 			response := &pb.AppendEntriesResponse{
-				Term:    state.currentTerm + 1,
+				Term:    state.CurrentTerm + 1,
 				Success: false,
 			}
 
@@ -56,7 +58,7 @@ func TestPeer_AppendEntriesResponse(t *testing.T) {
 
 		Convey("it should advise the leader to resend data if the peer requires it", func() {
 			response := &pb.AppendEntriesResponse{
-				Term:    state.currentTerm,
+				Term:    state.CurrentTerm,
 				Success: false,
 			}
 

@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"github.com/alexander-ignatyev/raft/state"
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 )
@@ -29,7 +30,7 @@ func (s *Server) getRole(handle RoleHandle) Role {
 
 }
 
-func (s *Server) run(handle RoleHandle, state *State) {
+func (s *Server) run(handle RoleHandle, state *state.State) {
 	for ; handle != ExitRoleHandle; handle, state = s.getRole(handle).RunRole(s.ctx, state) {
 		glog.Flush()
 		glog.Warningf("Switching to new role: %v", handle)

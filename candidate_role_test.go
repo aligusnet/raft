@@ -10,20 +10,19 @@ import (
 
 func TestCandidateRole(t *testing.T) {
 	Convey("Replica should be elected given at least half of votes", t, func() {
-		state := newState(1, time.Millisecond*30, NewLog(), &noOpStateMachine{})
-		state.votedFor = state.id
+		candidateState := newTestState(1, 30)
 		role := newCandidateRole(newDispatcher())
 		for i := int64(0); i < 4; i++ {
 			client := newRequestVoteClient(i%2 == 0)
 			role.replicas[i] = &Replica{client: client}
 		}
 
-		rh, _ := role.RunRole(context.Background(), state)
+		rh, _ := role.RunRole(context.Background(), candidateState)
 		So(rh, ShouldEqual, LeaderRoleHandle)
 	})
 
 	Convey("Replica should respond on requestVote", t, func(c C) {
-		state := newState(1, time.Millisecond*10, NewLog(), &noOpStateMachine{})
+		candidateState := newTestState(1, 10)
 		dispatcher := newDispatcher()
 		role := newCandidateRole(dispatcher)
 		for i := int64(0); i < 4; i++ {
@@ -33,21 +32,21 @@ func TestCandidateRole(t *testing.T) {
 
 		go func() {
 			time.Sleep(2 * time.Millisecond)
-			peerState := newState(2, time.Millisecond*10, NewLog(), &noOpStateMachine{})
-			peerState.currentTerm = state.currentTerm + 1
-			peerState.log.Append(1, []byte("cmd1"))
-			request := peerState.requestVoteRequest()
+			peerState := newTestState(2, 10)
+			peerState.CurrentTerm = candidateState.CurrentTerm + 1
+			peerState.Log.Append(1, []byte("cmd1"))
+			request := peerState.RequestVoteRequest()
 			response, err := dispatcher.RequestVote(context.Background(), request)
 			c.So(response.VoteGranted, ShouldBeTrue)
 			c.So(err, ShouldBeNil)
 		}()
 
-		rh, _ := role.RunRole(context.Background(), state)
+		rh, _ := role.RunRole(context.Background(), candidateState)
 		c.So(rh, ShouldEqual, CandidateRoleHandle)
 	})
 
 	Convey("Replica should respond on appendEntries", t, func(c C) {
-		state := newState(1, time.Millisecond*30, NewLog(), &noOpStateMachine{})
+		candidateState := newTestState(1, 10)
 		dispatcher := newDispatcher()
 		role := newCandidateRole(dispatcher)
 		for i := int64(0); i < 4; i++ {
@@ -57,23 +56,24 @@ func TestCandidateRole(t *testing.T) {
 
 		go func() {
 			time.Sleep(2 * time.Millisecond)
-			peerState := newState(2, time.Millisecond*10, NewLog(), &noOpStateMachine{})
-			peerState.currentTerm = state.currentTerm + 1
-			peerState.log.Append(1, []byte("cmd1"))
-			request := peerState.appendEntriesRequest(1)
+			peerState := newTestState(2, 10)
+			peerState.CurrentTerm = candidateState.CurrentTerm + 1
+			peerState.Log.Append(1, []byte("cmd1"))
+			request := peerState.AppendEntriesRequest(1)
 			response, err := dispatcher.AppendEntries(context.Background(), request)
 			c.So(response, ShouldNotBeNil)
 			c.So(err, ShouldBeNil)
 		}()
 
-		rh, _ := role.RunRole(context.Background(), state)
+		rh, _ := role.RunRole(context.Background(), candidateState)
 		c.So(rh, ShouldEqual, FollowerRoleHandle)
 	})
 
 	Convey("Replica should respond on executeCommand", t, func(c C) {
-		state := newState(1, time.Millisecond*10, NewLog(), &noOpStateMachine{})
-		state.currentLeaderId = 2
-		state.addresses[2] = "address"
+		addresses := make(map[int64]string)
+		addresses[2] = "address"
+		candidateState := newTestStateWithAddresses(1, 10, addresses)
+		candidateState.CurrentLeaderId = 2
 		dispatcher := newDispatcher()
 		role := newCandidateRole(dispatcher)
 		for i := int64(0); i < 4; i++ {
@@ -89,35 +89,35 @@ func TestCandidateRole(t *testing.T) {
 			c.So(err, ShouldNotBeNil)
 		}()
 
-		role.RunRole(context.Background(), state)
+		role.RunRole(context.Background(), candidateState)
 	})
 
 	Convey("Replica should not be elected given less than half of votes", t, func() {
-		state := newState(1, time.Millisecond*10, NewLog(), &noOpStateMachine{})
+		candidateState := newTestState(1, 10)
 		role := newCandidateRole(newDispatcher())
 		for i := int64(0); i < 4; i++ {
 			client := newRequestVoteClient(i == 0)
 			role.replicas[i] = &Replica{client: client}
 		}
 
-		rh, _ := role.RunRole(context.Background(), state)
+		rh, _ := role.RunRole(context.Background(), candidateState)
 		So(rh, ShouldEqual, CandidateRoleHandle)
 	})
 
 	Convey("Replica should not be elected given deadline passes", t, func() {
-		state := newState(1, time.Millisecond, NewLog(), &noOpStateMachine{})
+		candidateState := newTestState(1, 1)
 		role := newCandidateRole(newDispatcher())
 		for i := int64(0); i < 4; i++ {
 			client := newRequestVoteClient(true)
 			role.replicas[i] = &Replica{client: client}
 		}
 
-		rh, _ := role.RunRole(context.Background(), state)
+		rh, _ := role.RunRole(context.Background(), candidateState)
 		So(rh, ShouldEqual, CandidateRoleHandle)
 	})
 
 	Convey("Replica should not be elected given cancelation", t, func() {
-		state := newState(1, time.Millisecond*10, NewLog(), &noOpStateMachine{})
+		candidateState := newTestState(1, 10)
 		role := newCandidateRole(newDispatcher())
 		for i := int64(0); i < 4; i++ {
 			client := newRequestVoteClient(true)
@@ -129,7 +129,7 @@ func TestCandidateRole(t *testing.T) {
 			time.Sleep(2 * time.Millisecond)
 			cancel()
 		}()
-		rh, _ := role.RunRole(ctx, state)
+		rh, _ := role.RunRole(ctx, candidateState)
 		So(rh, ShouldEqual, ExitRoleHandle)
 	})
 

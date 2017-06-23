@@ -1,4 +1,4 @@
-package raft
+package state
 
 type StateMachine interface {
 	ExecuteCommand(command []byte) ([]byte, error)

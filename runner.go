@@ -2,7 +2,9 @@ package raft
 
 import (
 	"container/list"
+	"github.com/alexander-ignatyev/raft/log"
 	pb "github.com/alexander-ignatyev/raft/raft"
+	"github.com/alexander-ignatyev/raft/state"
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -11,7 +13,7 @@ import (
 	"time"
 )
 
-func Run(ctx context.Context, id int64, timeout time.Duration, log Log, endPointAddresses map[int64]string, machine StateMachine) {
+func Run(ctx context.Context, id int64, timeout time.Duration, log log.Log, endPointAddresses map[int64]string, machine state.StateMachine) {
 	server := newServer(ctx)
 	lis, err := net.Listen("tcp", endPointAddresses[id])
 	if err != nil {
@@ -36,8 +38,7 @@ func Run(ctx context.Context, id int64, timeout time.Duration, log Log, endPoint
 		replicas:   replicas,
 	}
 
-	state := newState(id, timeout, log, machine)
-	state.addresses = endPointAddresses
+	state := state.New(id, timeout, endPointAddresses, log, machine)
 	go server.run(FollowerRoleHandle, state)
 
 	gs := grpc.NewServer()

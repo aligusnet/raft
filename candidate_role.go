@@ -3,6 +3,7 @@ package raft
 import (
 	"fmt"
 	pb "github.com/alexander-ignatyev/raft/raft"
+	"github.com/alexander-ignatyev/raft/state"
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 	"math/rand"
@@ -23,11 +24,11 @@ func newCandidateRole(dispatcher *Dispatcher) *CandidateRole {
 	}
 }
 
-func (r *CandidateRole) RunRole(ctx context.Context, state *State) (RoleHandle, *State) {
-	state.setTerm(state.currentTerm + 1)
-	timeout := generateTimeout(state.timeout)
+func (r *CandidateRole) RunRole(ctx context.Context, state *state.State) (RoleHandle, *state.State) {
+	state.SetTerm(state.CurrentTerm + 1)
+	timeout := generateTimeout(state.Timeout)
 	ctx, cancel := context.WithTimeout(ctx, timeout)
-	ctx = context.WithValue(ctx, requestKey, state.requestVoteRequest())
+	ctx = context.WithValue(ctx, requestKey, state.RequestVoteRequest())
 	defer cancel()
 
 	result := make(chan bool, len(r.replicas))
@@ -40,13 +41,13 @@ func (r *CandidateRole) RunRole(ctx context.Context, state *State) (RoleHandle, 
 	for {
 		select {
 		case requestVote := <-r.dispatcher.requestVoteCh:
-			response := state.requestVoteResponse(requestVote.in)
+			response := state.RequestVoteResponse(requestVote.in)
 			if response.VoteGranted {
 				positiveVotes--
 			}
 			requestVote.send(response)
 		case appendEntries := <-r.dispatcher.appendEntriesCh:
-			response, accepted := state.appendEntriesResponse(appendEntries.in)
+			response, accepted := state.AppendEntriesResponse(appendEntries.in)
 			appendEntries.send(response)
 			if accepted {
 				return FollowerRoleHandle, state

@@ -2,6 +2,7 @@ package raft
 
 import (
 	"fmt"
+	"github.com/alexander-ignatyev/raft/state"
 	"golang.org/x/net/context"
 )
 
@@ -30,12 +31,12 @@ func (rh RoleHandle) String() string {
 }
 
 type Role interface {
-	RunRole(ctx context.Context, state *State) (RoleHandle, *State)
+	RunRole(ctx context.Context, state *state.State) (RoleHandle, *state.State)
 }
 
 type ExitRole struct{}
 
-func (r *ExitRole) RunRole(ctx context.Context, state *State) (RoleHandle, *State) {
+func (r *ExitRole) RunRole(ctx context.Context, state *state.State) (RoleHandle, *state.State) {
 	return ExitRoleHandle, state
 }
 
