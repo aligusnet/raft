@@ -31,7 +31,8 @@ message AppendEntriesRequest {
 
 message AppendEntriesResponse {
     int64 term = 1;
-    bool success = 2;
+    int64 nextLogIndex = 2;
+    bool success = 3;
 }
 
 message LogEntry {

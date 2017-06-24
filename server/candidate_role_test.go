@@ -33,7 +33,7 @@ func TestCandidateRole(t *testing.T) {
 		go func() {
 			time.Sleep(2 * time.Millisecond)
 			peerState := newTestState(2, 10)
-			peerState.CurrentTerm = candidateState.CurrentTerm + 1
+			peerState.CurrentTerm = candidateState.CurrentTerm
 			peerState.Log.Append(1, []byte("cmd1"))
 			request := peerState.RequestVoteRequest()
 			response, err := dispatcher.RequestVote(context.Background(), request)
@@ -43,6 +43,30 @@ func TestCandidateRole(t *testing.T) {
 
 		rh, _ := role.RunRole(context.Background(), candidateState)
 		c.So(rh, ShouldEqual, CandidateRoleHandle)
+	})
+
+	Convey("Replica should step out on requestVote with bigger term", t, func(c C) {
+		candidateState := newTestState(1, 10)
+		dispatcher := newDispatcher()
+		role := newCandidateRole(dispatcher)
+		for i := int64(0); i < 4; i++ {
+			client := newRequestVoteClient(i%2 == 0)
+			role.replicas[i] = &Replica{client: client}
+		}
+
+		go func() {
+			time.Sleep(2 * time.Millisecond)
+			peerState := newTestState(2, 10)
+			peerState.CurrentTerm = candidateState.CurrentTerm+1
+			peerState.Log.Append(1, []byte("cmd1"))
+			request := peerState.RequestVoteRequest()
+			response, err := dispatcher.RequestVote(context.Background(), request)
+			c.So(response.VoteGranted, ShouldBeTrue)
+			c.So(err, ShouldBeNil)
+		}()
+
+		rh, _ := role.RunRole(context.Background(), candidateState)
+		c.So(rh, ShouldEqual, FollowerRoleHandle)
 	})
 
 	Convey("Replica should respond on appendEntries", t, func(c C) {

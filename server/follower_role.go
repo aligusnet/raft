@@ -20,9 +20,9 @@ func (r *FollowerRole) RunRole(ctx context.Context, state *state.State) (RoleHan
 			response := state.RequestVoteResponse(requestVote.in)
 			requestVote.send(response)
 		case appendEntries := <-r.dispatcher.appendEntriesCh:
-			response, ok := state.AppendEntriesResponse(appendEntries.in)
+			response, _ := state.AppendEntriesResponse(appendEntries.in)
 			appendEntries.send(response)
-			if ok {
+			if response.Success {
 				state.CommitUpTo(appendEntries.in.CommitIndex)
 			}
 		case executeCommand := <-r.dispatcher.executeCommandCh:

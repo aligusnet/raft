@@ -113,35 +113,8 @@ func TestLeaderRole(t *testing.T) {
 			c.So(rh, ShouldEqual, FollowerRoleHandle)
 		})
 	})
-
-	Convey("Replica should respond on executeCommand", t, func(c C) {
-		Convey("given success results from followers it should execute command", func() {
-			state := newTestState(11, 10)
-			dispatcher := newDispatcher()
-			ctx, cancel := context.WithCancel(context.Background())
-
-			role := newLeaderRole(dispatcher)
-			for i := int64(0); i < 4; i++ {
-				client := newAppendEntriesClient(true, true)
-				role.replicas[i] = &Replica{client: client, id: i}
-			}
-
-			go func() {
-				time.Sleep(2 * time.Millisecond)
-				request := &pb.ExecuteCommandRequest{[]byte("Command1")}
-				response, err := dispatcher.ExecuteCommand(context.Background(), request)
-				c.So(response.Success, ShouldBeTrue)
-				c.So(err, ShouldBeNil)
-				cancel()
-			}()
-
-			// expectedCommitIndex := leaderState.commitIndex + 1
-			role.RunRole(ctx, state)
-			// c.So(state.commitIndex, ShouldEqual, expectedCommitIndex)
-		})
-
-	})
 }
+
 
 func TestLeader_stripToHeartbeet(t *testing.T) {
 	Convey("stripToHeartbeet: empty Entries list", t, func() {

@@ -51,7 +51,8 @@ func (p *ProcessInfo) CombinedOutput() []byte {
 	p.Stop()
 	p.cmd = exec.Command(p.progname, p.args...)
 	if res, err := p.cmd.CombinedOutput(); err != nil {
-		glog.Fatalf("Failed to start program # %v. error message: %v", p.instance, err)
+		glog.Fatalf("Failed to start program %v # %v. error message: %v, output: %s",
+			p.progname, p.instance, err, res)
 		return res
 	} else {
 		return res

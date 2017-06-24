@@ -3,6 +3,7 @@ package server
 import (
 	pb "github.com/alexander-ignatyev/raft/raft"
 	"github.com/alexander-ignatyev/raft/server/state"
+	"github.com/golang/glog"
 )
 
 type Replica struct {
@@ -29,5 +30,12 @@ func (peer *Replica) appendEntriesRequest(state *state.State,
 	}
 
 	peer.nextIndex--
+	if peer.nextIndex > in.NextLogIndex {
+		peer.nextIndex = in.NextLogIndex
+	}
+	if peer.nextIndex < 0 {
+		glog.Errorf("[Replica] got negative next peer index, peer id: %v", peer.id)
+		peer.nextIndex = 0
+	}
 	return state.AppendEntriesRequest(peer.nextIndex), false
 }

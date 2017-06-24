@@ -81,11 +81,10 @@ func (s *State) RequestVoteRequest() *pb.RequestVoteRequest {
 }
 
 func (s *State) RequestVoteResponse(in *pb.RequestVoteRequest) *pb.RequestVoteResponse {
-	// TODO: revise logic of granting votes
 	response := &pb.RequestVoteResponse{Term: s.CurrentTerm}
 	lastLogIndex, lastLogTerm := s.LastLogIndexAndTerm()
 	if s.votedFor != s.id {
-		// we shot not grant vote if we've voted
+		// we should not grant vote if we've voted
 		response.VoteGranted = false
 	} else if in.Term < s.CurrentTerm {
 		// we don't vote for candidates with stale Term
@@ -102,6 +101,7 @@ func (s *State) RequestVoteResponse(in *pb.RequestVoteRequest) *pb.RequestVoteRe
 
 	if response.VoteGranted {
 		s.votedFor = in.CandidateId
+		s.CurrentTerm = in.Term
 	}
 	return response
 }
@@ -134,6 +134,7 @@ func (s *State) AppendEntriesResponse(request *pb.AppendEntriesRequest) (*pb.App
 	if request.Term < s.CurrentTerm {
 		response.Term = s.CurrentTerm
 		response.Success = false
+		response.NextLogIndex = s.Log.Size()
 		return response, false
 	} else {
 		s.CurrentLeaderId = request.LeaderId
@@ -150,12 +151,27 @@ func (s *State) AppendEntriesResponse(request *pb.AppendEntriesRequest) (*pb.App
 		}
 
 		if response.Success {
+			if request.PrevLogIndex < request.CommitIndex {
+				// danger zone
+				// check term and log index
+				offset := request.CommitIndex - request.PrevLogIndex - 1
+				numEntries := int64(len(request.Entries))
+				for i := int64(0); i < offset && i < numEntries; i++ {
+					oldEntry := s.Log.Get(i+request.PrevLogIndex+1)
+					newEntry := request.Entries[i]
+					if oldEntry.Term != newEntry.Term || oldEntry.Index != newEntry.Index {
+						glog.Errorf("[State] got inconsistency in AppendEntries request from leader id %v",
+							request.LeaderId)
+					}
+				}
+			}
 			s.Log.EraseAfter(request.PrevLogIndex)
 			for _, entry := range request.Entries {
 				s.Log.Append(entry.Term, entry.Command)
 			}
 		}
 
+		response.NextLogIndex = s.Log.Size()
 		return response, true
 	}
 }

@@ -107,6 +107,7 @@ func (c *clientMock) AppendEntries(ctx context.Context,
 	time.Sleep(replicaTestTimeout) // processing time
 	if len(c.appendEntries) > c.appendEntriesIndex {
 		response := c.appendEntries[c.appendEntriesIndex]
+		response.NextLogIndex = in.PrevLogIndex + int64(len(in.Entries))
 		c.appendEntriesIndex++
 		return response, nil
 	} else {

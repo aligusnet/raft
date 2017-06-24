@@ -28,7 +28,6 @@ func newLeaderRole(dispatcher *Dispatcher) *LeaderRole {
 type appendEntriesPeerMessage struct {
 	peerId       int64
 	response     *pb.AppendEntriesResponse
-	lastLogIndex int64
 }
 
 type executeCommandItem struct {
@@ -85,12 +84,14 @@ func (r *LeaderRole) RunRole(ctx context.Context, state *state.State) (RoleHandl
 			response := r.requestVoteResponse(state, requestVote.in)
 			requestVote.send(response)
 			if response.VoteGranted {
+				glog.Infof("[Leader] granted vote for %v, stepping out...", requestVote.in.CandidateId)
 				return FollowerRoleHandle, state
 			}
 		case appendEntries := <-r.dispatcher.appendEntriesCh:
 			response, accepted := r.appendEntriesResponse(state, appendEntries.in)
 			appendEntries.send(response)
 			if accepted {
+				glog.Infof("[Leader] accepted AppendEntries from %v, stepping out...", appendEntries.in.LeaderId)
 				return FollowerRoleHandle, state
 			}
 		case executeCommand := <-r.dispatcher.executeCommandCh:
@@ -152,7 +153,15 @@ func (r *LeaderRole) executeCommand(state *state.State, message *executeCommandM
 }
 
 func (r *LeaderRole) processAppendEntriesResponse(state *state.State, message *appendEntriesPeerMessage) {
+	peerLastLogIndex := message.response.NextLogIndex - 1
 	glog.Infof("[Leader] got response from peer %v", message.response)
+	if peer, ok := r.replicas[message.peerId]; ok {
+		peer.nextIndex = message.response.NextLogIndex
+	} else {
+		glog.Errorf("Got response from unknown peer: %v", message.peerId)
+		return
+	}
+
 	var next *list.Element
 	for e := r.waitlist.Front(); e != nil; e = next {
 		next = e.Next()
@@ -161,16 +170,16 @@ func (r *LeaderRole) processAppendEntriesResponse(state *state.State, message *a
 			glog.Errorf("[Leader] waitlist contains unexpected value: %v, %T", e.Value, e.Value)
 			continue
 		}
-		if item.logIndex > message.lastLogIndex {
+		if item.logIndex > peerLastLogIndex {
 			break
 		}
 		if _, ok := item.responses[message.peerId]; !ok {
 			item.responses[message.peerId] = message.response.Success
 			if message.response.Success {
-				r.replicas[message.peerId].nextIndex = item.logIndex + 1
 				item.numPositiveResponses++
 				if item.numPositiveResponses >= requiredResponses(len(r.replicas)) {
-					glog.Infof("[Leader] sending success message for Execute Command, log index: %v", message.lastLogIndex)
+					glog.Infof("[Leader] sending success message for Execute Command, log index: %v",
+						peerLastLogIndex)
 					res, err := state.CommitUpTo(item.logIndex)
 					if err == nil {
 						go item.message.send(&pb.ExecuteCommandResponse{Success: true, Answer: res})
@@ -182,7 +191,8 @@ func (r *LeaderRole) processAppendEntriesResponse(state *state.State, message *a
 				}
 			}
 			if len(item.responses) >= len(r.replicas) {
-				glog.Fatalf("[Leader] Failed to execute command, log index: %v", message.lastLogIndex)
+				glog.Fatalf("[Leader] Failed to execute command, log index: %v",
+					peerLastLogIndex)
 			}
 		}
 	}
@@ -212,7 +222,6 @@ func peerThread(ctx context.Context, id int64,
 				msg := &appendEntriesPeerMessage{
 					peerId:       id,
 					response:     resp,
-					lastLogIndex: request.PrevLogIndex,
 				}
 				out <- msg
 			} else {

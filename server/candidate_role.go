@@ -26,12 +26,13 @@ func newCandidateRole(dispatcher *Dispatcher) *CandidateRole {
 
 func (r *CandidateRole) RunRole(ctx context.Context, state *state.State) (RoleHandle, *state.State) {
 	state.SetTerm(state.CurrentTerm + 1)
+	currentTerm := state.CurrentTerm
 	timeout := generateTimeout(state.Timeout)
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	ctx = context.WithValue(ctx, requestKey, state.RequestVoteRequest())
 	defer cancel()
 
-	result := make(chan bool, len(r.replicas))
+	result := make(chan *pb.RequestVoteResponse, len(r.replicas))
 
 	for _, peer := range r.replicas {
 		go requestVote(ctx, peer, result)
@@ -46,6 +47,10 @@ func (r *CandidateRole) RunRole(ctx context.Context, state *state.State) (RoleHa
 				positiveVotes--
 			}
 			requestVote.send(response)
+			// step out
+			if currentTerm < state.CurrentTerm {
+				return FollowerRoleHandle, state
+			}
 		case appendEntries := <-r.dispatcher.appendEntriesCh:
 			response, accepted := state.AppendEntriesResponse(appendEntries.in)
 			appendEntries.send(response)
@@ -55,8 +60,11 @@ func (r *CandidateRole) RunRole(ctx context.Context, state *state.State) (RoleHa
 		case executeCommand := <-r.dispatcher.executeCommandCh:
 			executeCommand.sendError(fmt.Errorf("Leader is unknown"))
 		case res := <-result:
-			if res {
+			if res.VoteGranted {
 				positiveVotes++
+			} else if res.Term > state.CurrentTerm { // step out
+				state.CurrentTerm = res.Term
+				return FollowerRoleHandle, state
 			}
 			if positiveVotes >= requiredVotes(len(r.replicas)+1) {
 				return LeaderRoleHandle, state
@@ -73,13 +81,13 @@ func (r *CandidateRole) RunRole(ctx context.Context, state *state.State) (RoleHa
 	}
 }
 
-func requestVote(ctx context.Context, peer *Replica, result chan bool) {
+func requestVote(ctx context.Context, peer *Replica, result chan *pb.RequestVoteResponse) {
 	request := ctx.Value(requestKey).(*pb.RequestVoteRequest)
 	for {
 		resp, err := peer.client.RequestVote(ctx, request)
 		if err == nil {
 			glog.Infof("[Candidate] [peer thread: %v] got response: %v", peer.id, resp)
-			result <- resp.VoteGranted
+			result <- resp
 			return
 		}
 		select {
