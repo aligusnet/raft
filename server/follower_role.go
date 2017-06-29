@@ -14,12 +14,16 @@ type FollowerRole struct {
 }
 
 func (r *FollowerRole) RunRole(ctx context.Context, state *state.State) (RoleHandle, *state.State) {
+	leaderIsActive := false
+	ticker := time.NewTicker(state.Timeout)
+	defer ticker.Stop()
 	for {
 		select {
 		case requestVote := <-r.dispatcher.requestVoteCh:
 			response := state.RequestVoteResponse(requestVote.in)
 			requestVote.send(response)
 		case appendEntries := <-r.dispatcher.appendEntriesCh:
+			leaderIsActive = true
 			response, _ := state.AppendEntriesResponse(appendEntries.in)
 			appendEntries.send(response)
 			if response.Success {
@@ -33,9 +37,13 @@ func (r *FollowerRole) RunRole(ctx context.Context, state *state.State) (RoleHan
 				executeCommand.sendError(fmt.Errorf("Leader is unknown"))
 			}
 
-		case <-time.After(state.Timeout):
-			glog.Info("[Follower] election timeout")
-			return CandidateRoleHandle, state // timeout
+		case <- ticker.C:
+			if leaderIsActive {
+				leaderIsActive = false
+			} else {
+				glog.Info("[Follower] election timeout")
+				return CandidateRoleHandle, state // timeout
+			}
 		case <-ctx.Done():
 			return ExitRoleHandle, state
 		}

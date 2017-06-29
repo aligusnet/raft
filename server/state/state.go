@@ -151,10 +151,9 @@ func (s *State) AppendEntriesResponse(request *pb.AppendEntriesRequest) (*pb.App
 		}
 
 		if response.Success {
-			if request.PrevLogIndex < request.CommitIndex {
-				// danger zone
-				// check term and log index
-				offset := request.CommitIndex - request.PrevLogIndex - 1
+			if request.PrevLogIndex < s.commitIndex {
+				// danger zone: check term and log index
+				offset := s.commitIndex - request.PrevLogIndex - 1
 				numEntries := int64(len(request.Entries))
 				for i := int64(0); i < offset && i < numEntries; i++ {
 					oldEntry := s.Log.Get(i+request.PrevLogIndex+1)

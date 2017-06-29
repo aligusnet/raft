@@ -154,7 +154,7 @@ func (r *LeaderRole) executeCommand(state *state.State, message *executeCommandM
 
 func (r *LeaderRole) processAppendEntriesResponse(state *state.State, message *appendEntriesPeerMessage) {
 	peerLastLogIndex := message.response.NextLogIndex - 1
-	glog.Infof("[Leader] got response from peer %v", message.response)
+	glog.Infof("[Leader] got response from peer %v %v", message.peerId, message.response)
 	if peer, ok := r.replicas[message.peerId]; ok {
 		peer.nextIndex = message.response.NextLogIndex
 	} else {
