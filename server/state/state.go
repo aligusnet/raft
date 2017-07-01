@@ -8,6 +8,9 @@ import (
 	"time"
 )
 
+const notVoted int64 = -1
+const unknownLeader int64 = -1
+
 type State struct {
 	id              int64
 	CurrentTerm     int64
@@ -31,22 +34,17 @@ func New(id int64,
 		id:              id,
 		Timeout:         timeout,
 		Log:             log,
-		votedFor:        id,
-		CurrentLeaderId: -1,
+		votedFor:        notVoted,
+		CurrentLeaderId: unknownLeader,
 		addresses:       addresses,
 		commitIndex:     -1,
 		machine:         machine,
 	}
 }
 
-func (s *State) SetTerm(term int64) {
-	if s.CurrentTerm < term {
-		s.votedFor = s.id
-	} else if s.CurrentTerm > term {
-		panic("We cannon go back in time")
-	}
-	s.CurrentTerm = term
-
+func (s *State) EnterElectionRace() {
+	s.CurrentTerm++
+	s.votedFor = s.id
 }
 
 // Get address of current leader.
@@ -83,25 +81,23 @@ func (s *State) RequestVoteRequest() *pb.RequestVoteRequest {
 func (s *State) RequestVoteResponse(in *pb.RequestVoteRequest) *pb.RequestVoteResponse {
 	response := &pb.RequestVoteResponse{Term: s.CurrentTerm}
 	lastLogIndex, lastLogTerm := s.LastLogIndexAndTerm()
-	if s.votedFor != s.id {
-		// we should not grant vote if we've voted
-		response.VoteGranted = false
-	} else if in.Term < s.CurrentTerm {
+	if in.Term < s.CurrentTerm {
 		// we don't vote for candidates with stale Term
 		response.VoteGranted = false
-	} else if in.LastLogTerm < lastLogTerm { // Log's up-to-date checking
+	} else if in.Term == s.CurrentTerm && s.votedFor != notVoted {
+		// we already voted in the current term
 		response.VoteGranted = false
-	} else if in.LastLogTerm > lastLogTerm {
-		response.VoteGranted = true
-	} else if in.LastLogIndex >= lastLogIndex {
-		response.VoteGranted = true
-	} else if in.LastLogIndex < lastLogIndex {
+	} else if in.LastLogTerm < lastLogTerm || in.LastLogIndex < lastLogIndex {
+		// Log's up-to-date checking
 		response.VoteGranted = false
+	} else {
+		response.VoteGranted = true
 	}
 
 	if response.VoteGranted {
 		s.votedFor = in.CandidateId
 		s.CurrentTerm = in.Term
+		s.abandoneLeader()
 	}
 	return response
 }
@@ -137,7 +133,6 @@ func (s *State) AppendEntriesResponse(request *pb.AppendEntriesRequest) (*pb.App
 		response.NextLogIndex = s.Log.Size()
 		return response, false
 	} else {
-		s.CurrentLeaderId = request.LeaderId
 		lastLogIndex := s.Log.Size() - 1
 		s.CurrentTerm = request.Term
 		response.Term = s.CurrentTerm
@@ -171,6 +166,7 @@ func (s *State) AppendEntriesResponse(request *pb.AppendEntriesRequest) (*pb.App
 		}
 
 		response.NextLogIndex = s.Log.Size()
+		s.discoverLeader(request.LeaderId)
 		return response, true
 	}
 }
@@ -192,11 +188,23 @@ func (s *State) CommitUpTo(index int64) ([]byte, error) {
 		if err != nil {
 			glog.Warningf("Got error after executing command # %v: %v", i, err)
 		}
-	}
-	if s.commitIndex != index {
-		s.commitIndex = index
-		glog.Infof("State Machine after executed command # %v: %v", index, s.machine.Debug())
+		s.commitIndex = i
+		glog.Infof("State Machine after executed command # %v: %v", i, s.machine.Debug())
 		glog.Flush()
 	}
 	return res, err
+}
+
+func (s *State) discoverLeader(id int64) {
+	if s.CurrentLeaderId != id {
+		s.CurrentLeaderId = id
+		glog.Infof("[State] discover new leader: %v, commit index: %v", id, s.commitIndex)
+	}
+}
+
+func (s *State) abandoneLeader() {
+	if s.CurrentLeaderId != unknownLeader {
+		glog.Infof("[State] abandoning old leader: %v %v", s.CurrentLeaderId, s.commitIndex)
+		s.CurrentLeaderId = unknownLeader
+	}
 }

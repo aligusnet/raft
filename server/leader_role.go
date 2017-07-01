@@ -114,17 +114,10 @@ func (r *LeaderRole) requestVoteResponse(state *state.State, in *pb.RequestVoteR
 }
 
 func (r *LeaderRole) appendEntriesResponse(state *state.State, in *pb.AppendEntriesRequest) (*pb.AppendEntriesResponse, bool) {
-	if in.Term == state.CurrentLeaderId {
+	if in.Term == state.CurrentTerm {
 		glog.Fatalf("[Leader] got appendEntries from another leader with the same Term: %v", in)
 	}
-	if in.Term < state.CurrentTerm {
-		return &pb.AppendEntriesResponse{
-			Term:    state.CurrentTerm,
-			Success: false,
-		}, false
-	} else {
-		return state.AppendEntriesResponse(in)
-	}
+	return state.AppendEntriesResponse(in)
 }
 
 func (r *LeaderRole) executeCommand(state *state.State, message *executeCommandMessage) {
@@ -133,6 +126,7 @@ func (r *LeaderRole) executeCommand(state *state.State, message *executeCommandM
 		message:   message,
 		responses: make(map[int64]bool),
 		logIndex:  logIndex,
+		numPositiveResponses: 1,
 	}
 	r.waitlist.PushBack(item)
 	for _, peer := range r.replicas {

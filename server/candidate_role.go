@@ -25,8 +25,7 @@ func newCandidateRole(dispatcher *Dispatcher) *CandidateRole {
 }
 
 func (r *CandidateRole) RunRole(ctx context.Context, state *state.State) (RoleHandle, *state.State) {
-	state.SetTerm(state.CurrentTerm + 1)
-	currentTerm := state.CurrentTerm
+	state.EnterElectionRace()
 	timeout := generateTimeout(state.Timeout)
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	ctx = context.WithValue(ctx, requestKey, state.RequestVoteRequest())
@@ -43,12 +42,9 @@ func (r *CandidateRole) RunRole(ctx context.Context, state *state.State) (RoleHa
 		select {
 		case requestVote := <-r.dispatcher.requestVoteCh:
 			response := state.RequestVoteResponse(requestVote.in)
-			if response.VoteGranted {
-				positiveVotes--
-			}
 			requestVote.send(response)
 			// step out
-			if currentTerm < state.CurrentTerm {
+			if response.VoteGranted {
 				return FollowerRoleHandle, state
 			}
 		case appendEntries := <-r.dispatcher.appendEntriesCh:

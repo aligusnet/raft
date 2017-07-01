@@ -2,21 +2,14 @@ package log
 
 import (
 	pb "github.com/alexander-ignatyev/raft/raft"
+	"github.com/golang/glog"
 )
 
-type LogReader interface {
+type Log interface {
 	Get(index int64) *pb.LogEntry
 	Size() int64
-}
-
-type LogWriter interface {
 	Append(term int64, cmd []byte) int64 // returns index of appended entry
 	EraseAfter(index int64)
-}
-
-type Log interface {
-	LogReader
-	LogWriter
 }
 
 func New() Log {
@@ -35,6 +28,12 @@ func (l *arrayLog) Append(term int64, cmd []byte) int64 {
 }
 
 func (l *arrayLog) Get(index int64) *pb.LogEntry {
+	defer func() {
+		if r := recover(); r != nil {
+			glog.Errorf("log.Get() panicked on index: %v, size: %v", index, len(l.entries))
+			panic(r)
+		}
+	}()
 	return l.entries[index]
 }
 

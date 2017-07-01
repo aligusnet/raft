@@ -11,19 +11,23 @@ import (
 
 type FollowerRole struct {
 	dispatcher *Dispatcher
+	timeout time.Duration
+	electionTimer *time.Timer
 }
 
 func (r *FollowerRole) RunRole(ctx context.Context, state *state.State) (RoleHandle, *state.State) {
-	leaderIsActive := false
-	ticker := time.NewTicker(state.Timeout)
-	defer ticker.Stop()
+	r.init(state.Timeout)
+	defer r.dispose()
 	for {
 		select {
 		case requestVote := <-r.dispatcher.requestVoteCh:
 			response := state.RequestVoteResponse(requestVote.in)
+			if response.VoteGranted {
+				r.resetElectionTimer()
+			}
 			requestVote.send(response)
 		case appendEntries := <-r.dispatcher.appendEntriesCh:
-			leaderIsActive = true
+			r.resetElectionTimer()
 			response, _ := state.AppendEntriesResponse(appendEntries.in)
 			appendEntries.send(response)
 			if response.Success {
@@ -37,13 +41,9 @@ func (r *FollowerRole) RunRole(ctx context.Context, state *state.State) (RoleHan
 				executeCommand.sendError(fmt.Errorf("Leader is unknown"))
 			}
 
-		case <- ticker.C:
-			if leaderIsActive {
-				leaderIsActive = false
-			} else {
-				glog.Info("[Follower] election timeout")
-				return CandidateRoleHandle, state // timeout
-			}
+		case <- r.electionTimer.C:
+			glog.Info("[Follower] election timeout")
+			return CandidateRoleHandle, state // timeout
 		case <-ctx.Done():
 			return ExitRoleHandle, state
 		}
@@ -60,4 +60,20 @@ func (r *FollowerRole) executeCommandResponse(state *state.State) *pb.ExecuteCom
 		return response
 	}
 	return nil
+}
+
+func (r *FollowerRole) resetElectionTimer() {
+	if !r.electionTimer.Stop() {
+		<- r.electionTimer.C
+	}
+	r.electionTimer.Reset(r.timeout)
+}
+
+func (r *FollowerRole) init(d time.Duration) {
+	r.timeout = d
+	r.electionTimer = time.NewTimer(d)
+}
+
+func (r *FollowerRole) dispose() {
+	r.electionTimer.Stop()
 }

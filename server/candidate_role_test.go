@@ -26,7 +26,7 @@ func TestCandidateRole(t *testing.T) {
 		dispatcher := newDispatcher()
 		role := newCandidateRole(dispatcher)
 		for i := int64(0); i < 4; i++ {
-			client := newRequestVoteClient(i%2 == 0)
+			client := newRequestVoteClient(i % 2 == 0)
 			role.replicas[i] = &Replica{client: client}
 		}
 
@@ -37,12 +37,12 @@ func TestCandidateRole(t *testing.T) {
 			peerState.Log.Append(1, []byte("cmd1"))
 			request := peerState.RequestVoteRequest()
 			response, err := dispatcher.RequestVote(context.Background(), request)
-			c.So(response.VoteGranted, ShouldBeTrue)
+			c.So(response.VoteGranted, ShouldBeFalse)
 			c.So(err, ShouldBeNil)
 		}()
 
 		rh, _ := role.RunRole(context.Background(), candidateState)
-		c.So(rh, ShouldEqual, CandidateRoleHandle)
+		c.So(rh, ShouldEqual, LeaderRoleHandle)
 	})
 
 	Convey("Replica should step out on requestVote with bigger term", t, func(c C) {
