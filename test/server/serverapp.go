@@ -112,6 +112,7 @@ func (gsm *GranaryStateMachine) Debug() string {
 func main() {
 	var instance = flag.Int64("instance", -1, "instance number: >=0")
 	flag.Parse()
+	defer glog.Flush()
 
 	glog.Info("starting server")
 
@@ -133,6 +134,5 @@ func main() {
 	server.Run(ctx, int64(index), 200*time.Millisecond, log.New(), endpoints, &GranaryStateMachine{size: 100, capacity: 1000})
 
 	glog.Info("Application is shutting down")
-	glog.Flush()
 
 }

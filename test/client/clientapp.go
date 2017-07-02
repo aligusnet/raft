@@ -127,6 +127,8 @@ func takeGrain(client *GranaryClient) {
 func main() {
 	serverAddresses := []string{"localhost:50100", "localhost:50101", "localhost:50102", "localhost:50103", "localhost:50104"}
 	flag.Parse()
+	defer glog.Flush()
+
 	glog.Info("Hello from client")
 
 	raftClient := client.New(serverAddresses)
@@ -143,5 +145,4 @@ func main() {
 	}
 
 	glog.Info("Client application is shutting down...")
-	glog.Flush()
 }

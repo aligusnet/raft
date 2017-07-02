@@ -6,6 +6,8 @@ import (
 	"github.com/golang/glog"
 	"os/exec"
 	"time"
+	"sync"
+	"sync/atomic"
 )
 
 type ProcessInfo struct {
@@ -40,74 +42,113 @@ func newServerInfo(instance int64) *ProcessInfo {
 }
 
 func (p *ProcessInfo) Start() {
-	p.Stop()
+	p.Kill()
 	p.cmd = exec.Command(p.progname, p.args...)
 	if err := p.cmd.Start(); err != nil {
 		glog.Fatalf("Failed to start program # %v. error message: %v", p.instance, err)
 	}
 }
 
-func (p *ProcessInfo) CombinedOutput() []byte {
-	p.Stop()
+func (p *ProcessInfo) CombinedOutput() ([]byte, error) {
+	p.Kill()
 	p.cmd = exec.Command(p.progname, p.args...)
-	if res, err := p.cmd.CombinedOutput(); err != nil {
-		glog.Fatalf("Failed to start program %v # %v. error message: %v, output: %s",
-			p.progname, p.instance, err, res)
-		return res
-	} else {
-		return res
-	}
-
+	return p.cmd.CombinedOutput()
 }
 
-func (p *ProcessInfo) Stop() {
+func (p *ProcessInfo) Kill() {
 	if p.cmd != nil && p.cmd.Process != nil {
 		p.cmd.Process.Kill()
 		p.cmd = nil
 	}
 }
 
+
+type ProcessGroup struct {
+	name string
+	processes []*ProcessInfo
+	wg sync.WaitGroup
+	stopped int32 // atomic access only
+}
+
+
+func createProcessGroup(name string, n int,
+	maker func (instance int64) *ProcessInfo) *ProcessGroup {
+	group := &ProcessGroup{
+		name: name,
+		processes: make([]*ProcessInfo, n),
+		stopped: 0,
+	}
+
+	for i := 0; i < n; i++ {
+		group.processes[i] = maker(int64(i))
+	}
+
+	return group
+}
+
+func (group *ProcessGroup) run() {
+	for i := range group.processes {
+		glog.Infof("starting %v # %v", group.name, i)
+		group.wg.Add(1)
+		go func(process *ProcessInfo, index int) {
+			output, err := process.CombinedOutput()
+			for err != nil && atomic.LoadInt32(&group.stopped) == 0  {
+				glog.Infof("restarting %v %v, output: %s\n\n\n", group.name, index, output)
+				time.Sleep(500*time.Millisecond)
+				output, err = process.CombinedOutput()
+			}
+
+			glog.Infof("\n\n%v %v output: %s\n\n\n", group.name, index, output)
+			group.wg.Done()
+		}(group.processes[i], i)
+	}
+}
+
+
+func (group *ProcessGroup) stop() {
+	atomic.StoreInt32(&group.stopped, 1)
+	for _, p := range group.processes {
+		glog.Infof("stopping %v # %v", group.name, p.instance)
+		p.Kill()
+	}
+}
+
+func (group *ProcessGroup) wait() {
+	atomic.StoreInt32(&group.stopped, 1)
+	group.wg.Wait()
+}
+
 func main() {
 	flag.Parse()
-	clients := make([]*ProcessInfo, 10)
-	servers := make([]*ProcessInfo, 5)
 
-	for i := int64(0); i < int64(len(servers)); i++ {
-		glog.Infof("starting server # %v", i)
-		server := newServerInfo(i)
-		index := i
-		servers[i] = server
-		go func() {
-			output := server.CombinedOutput()
-			fmt.Printf("\n\nServer %v output: %s\n\n\n", index, output)
-		}()
-	}
+	defer glog.Flush()
 
-	defer func() {
-		for _, p := range servers {
-			glog.Infof("stopping server # %v", p.instance)
-			p.Stop()
-		}
-	}()
+	clients := createProcessGroup("client", 10, newClientInfo)
+	servers := createProcessGroup("server", 5, newServerInfo)
+
+	servers.run()
+	defer servers.stop()
 
 	time.Sleep(100 * time.Millisecond)
-	glog.Info("starting client # 0")
 
-	for i := 1; i < len(clients); i++ {
-		glog.Infof("starting client # %v", i)
-		clients[i] = newClientInfo(int64(i))
-		clients[i].Start()
-	}
+	clients.run()
 
-	clients[0] = newClientInfo(0)
 
-	output := clients[0].CombinedOutput()
+	time.Sleep(3*time.Second)
+	servers.processes[0].Kill()
+	servers.processes[2].Kill()
 
-	fmt.Printf("%s\n", output)
+	time.Sleep(3*time.Second)
+	servers.processes[1].Kill()
+	servers.processes[3].Kill()
+
+	time.Sleep(3*time.Second)
+	servers.processes[2].Kill()
+	servers.processes[4].Kill()
 
 	glog.Info("waiting for client termination")
-	clients[0].cmd.Wait()
+	clients.wait()
 
-	time.Sleep(time.Second)
-	servers[0].cmd.Wait()
+	time.Sleep(3*time.Second)
+	glog.Flush()
 }
