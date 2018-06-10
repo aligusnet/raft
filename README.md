@@ -2,7 +2,7 @@
 
 Implementation of a consensus algorithm Raft: https://raft.github.io
 
-[![Build Status](https://travis-ci.org/Alexander-Ignatyev/raft.svg?branch=master)](https://travis-ci.org/Alexander-Ignatyev/raft)
+[![Build Status](https://travis-ci.org/aligusnet/raft.svg?branch=master)](https://travis-ci.org/aligusnet/raft)
 
 
 ## Unit Tests

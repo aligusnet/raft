@@ -1,7 +1,7 @@
 package server
 
 import (
-	pb "github.com/alexander-ignatyev/raft/raft"
+	pb "github.com/aligusnet/raft/raft"
 	. "github.com/smartystreets/goconvey/convey"
 	"golang.org/x/net/context"
 	"testing"

@@ -2,9 +2,9 @@ package server
 
 import (
 	"container/list"
-	"github.com/alexander-ignatyev/raft/server/log"
-	pb "github.com/alexander-ignatyev/raft/raft"
-	"github.com/alexander-ignatyev/raft/server/state"
+	"github.com/aligusnet/raft/server/log"
+	pb "github.com/aligusnet/raft/raft"
+	"github.com/aligusnet/raft/server/state"
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"

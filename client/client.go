@@ -2,7 +2,7 @@ package client
 
 import (
 	"fmt"
-	pb "github.com/alexander-ignatyev/raft/raft"
+	pb "github.com/aligusnet/raft/raft"
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"

@@ -1,7 +1,7 @@
 package log
 
 import (
-	pb "github.com/alexander-ignatyev/raft/raft"
+	pb "github.com/aligusnet/raft/raft"
 	"github.com/golang/glog"
 )
 

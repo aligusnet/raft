@@ -2,7 +2,7 @@ package server
 
 import (
 	"fmt"
-	"github.com/alexander-ignatyev/raft/server/state"
+	"github.com/aligusnet/raft/server/state"
 	"golang.org/x/net/context"
 )
 

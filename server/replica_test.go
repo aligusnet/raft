@@ -2,9 +2,9 @@ package server
 
 import (
 	"fmt"
-	"github.com/alexander-ignatyev/raft/server/log"
-	pb "github.com/alexander-ignatyev/raft/raft"
-	"github.com/alexander-ignatyev/raft/server/state"
+	"github.com/aligusnet/raft/server/log"
+	pb "github.com/aligusnet/raft/raft"
+	"github.com/aligusnet/raft/server/state"
 	. "github.com/smartystreets/goconvey/convey"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"

@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/alexander-ignatyev/raft/client"
-	gsmpb "github.com/alexander-ignatyev/raft/test/protobuf"
+	"github.com/aligusnet/raft/client"
+	gsmpb "github.com/aligusnet/raft/test/protobuf"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"math/rand"

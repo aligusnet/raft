@@ -1,8 +1,8 @@
 package server
 
 import (
-	pb "github.com/alexander-ignatyev/raft/raft"
-	"github.com/alexander-ignatyev/raft/server/state"
+	pb "github.com/aligusnet/raft/raft"
+	"github.com/aligusnet/raft/server/state"
 	"github.com/golang/glog"
 )
 
